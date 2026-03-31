@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+motor
+pylint
+transformers
+torch
+pydantic
+python-dotenv
+cors

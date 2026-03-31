@@ -1,0 +1,324 @@
+from fastapi import APIRouter, HTTPException
+from models import CodeSubmission, ReviewResultResponse
+from services.ai_engine import analyze_code_with_ai
+from services.static_analyzer import run_static_analysis
+from pydantic import BaseModel
+from typing import Optional
+import subprocess, tempfile, os, sys, shutil
+
+class RunRequest(BaseModel):
+    code: str
+    language: str
+    stdin: Optional[str] = ""
+    mode: Optional[str] = "standard"
+    persona: Optional[str] = "standard"
+
+router = APIRouter()
+
+# In-memory storage for demonstration. 
+# In production, replace this with MongoDB calls.
+history_db = []
+
+@router.post("/analyze", response_model=ReviewResultResponse)
+async def analyze_code(submission: CodeSubmission):
+    if not submission.code.strip():
+        raise HTTPException(status_code=400, detail="Code cannot be empty")
+        
+    try:
+        # 1. Run Static Analysis — catches syntax errors first
+        static_feedback = run_static_analysis(submission.code, submission.language)
+
+        # Check if a syntax error was found — if so, skip AI engine entirely
+        has_syntax_error = any(
+            f.get("type") == "error" and "Syntax Error" in f.get("message", "")
+            for f in static_feedback
+        )
+
+        if has_syntax_error:
+            # Return immediately with failing scores — no point in AI analysis
+            result = ReviewResultResponse(
+                language=submission.language,
+                original_code=submission.code,
+                refactored_code=submission.code,  # Can't refactor broken code
+                scores={"quality": 0, "readability": 0, "performance": 0},
+                feedback=static_feedback
+            )
+        else:
+            # 2. Run AI/heuristic analysis on syntactically valid code
+            ai_result = analyze_code_with_ai(submission.code, submission.language)
+            merged_feedback = static_feedback + ai_result["feedback"]
+
+            result = ReviewResultResponse(
+                language=submission.language,
+                original_code=submission.code,
+                refactored_code=ai_result["refactored_code"],
+                scores=ai_result["scores"],
+                feedback=merged_feedback
+            )
+
+        # Save to history
+        history_db.append(result)
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/history")
+async def get_history():
+    """
+    Returns previous code reviews.
+    """
+    return {"history": history_db}
+
+@router.post("/run")
+async def run_code(request: RunRequest):
+    code = request.code
+    lang = request.language.lower()
+    
+    if lang == "python":
+        cmd = [sys.executable]
+        ext = ".py"
+    elif lang == "javascript" or lang == "js":
+        if not shutil.which("node"):
+            raise HTTPException(status_code=500, detail="Node.js is not installed on the server.")
+        cmd = ["node"]
+        ext = ".js"
+    elif lang == "java":
+        if not shutil.which("javac"):
+            raise HTTPException(status_code=500, detail="Java compiler (javac) is not installed.")
+        # Java needs a file matching its public class name. Let's find it.
+        import re
+        match = re.search(r"public\s+class\s+(\w+)", code)
+        class_name = match.group(1) if match else "Main"
+        
+        # Create a temp dir for Java compilation
+        temp_dir = tempfile.mkdtemp()
+        java_file = os.path.join(temp_dir, f"{class_name}.java")
+        with open(java_file, "w", encoding="utf-8") as f:
+            f.write(code)
+        
+        try:
+            # Compile
+            compile_proc = subprocess.run(["javac", java_file], capture_output=True, text=True)
+            if compile_proc.returncode != 0:
+                shutil.rmtree(temp_dir)
+                return {"stdout": "", "stderr": f"Compilation Error:\n{compile_proc.stderr}", "exit_code": compile_proc.returncode}
+            
+            # Run
+            run_proc = subprocess.Popen(["java", "-cp", temp_dir, class_name], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                out, err = run_proc.communicate(input=request.stdin, timeout=10)
+            except subprocess.TimeoutExpired:
+                run_proc.kill()
+                out, err = run_proc.communicate()
+                err += "\n\nError: Execution timed out after 10 seconds."
+            
+            shutil.rmtree(temp_dir)
+            return {
+                "stdout": out,
+                "stderr": err,
+                "exit_code": run_proc.returncode
+            }
+        except Exception as e:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise HTTPException(status_code=500, detail=f"Java execution failed: {str(e)}")
+            
+        return {} # Should not reach here
+    elif lang == "c++" or lang == "cpp":
+        if not shutil.which("g++"):
+            raise HTTPException(status_code=500, detail="C++ compiler (g++) is not installed.")
+        
+        temp_dir = tempfile.mkdtemp()
+        cpp_file = os.path.join(temp_dir, "main.cpp")
+        exe_file = os.path.join(temp_dir, "main.exe" if os.name == 'nt' else "main")
+        
+        with open(cpp_file, "w", encoding="utf-8") as f:
+            f.write(code)
+            
+        try:
+            # Compile
+            compile_proc = subprocess.run(["g++", cpp_file, "-o", exe_file], capture_output=True, text=True)
+            if compile_proc.returncode != 0:
+                shutil.rmtree(temp_dir)
+                return {"stdout": "", "stderr": f"Compilation Error:\n{compile_proc.stderr}", "exit_code": compile_proc.returncode}
+            
+            # Run
+            run_proc = subprocess.Popen([exe_file], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                out, err = run_proc.communicate(input=request.stdin, timeout=10)
+            except subprocess.TimeoutExpired:
+                run_proc.kill()
+                out, err = run_proc.communicate()
+                err += "\n\nError: Execution timed out after 10 seconds."
+            
+            shutil.rmtree(temp_dir)
+            return {
+                "stdout": out,
+                "stderr": err,
+                "exit_code": run_proc.returncode
+            }
+        except Exception as e:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise HTTPException(status_code=500, detail=f"C++ execution failed: {str(e)}")
+    else:
+        raise HTTPException(status_code=400, detail=f"Execution for language {lang} is not supported yet.")
+
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False, mode='w', encoding='utf-8') as f:
+        f.write(code)
+        temp_path = f.name
+
+    try:
+        proc = subprocess.Popen(cmd + [temp_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            out, err = proc.communicate(input=request.stdin, timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            out, err = proc.communicate()
+            err += "\n\nError: Execution timed out after 10 seconds."
+        
+        return {
+            "stdout": out,
+            "stderr": err,
+            "exit_code": proc.returncode
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to execute code: {str(e)}")
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+@router.post("/practice/evaluate")
+async def evaluate_practice(request: RunRequest):
+    # Generic mentor evaluation across all languages
+    code = request.code
+    lang = request.language.lower()
+    mode = request.mode.lower()
+    persona = request.persona.lower()
+
+    
+    # Map js to javascript
+    if lang == "js": lang = "javascript"
+    if lang == "c++": lang = "cpp"
+    
+    # 1. Run static analysis to detect syntax errors
+    static_feedback = run_static_analysis(code, lang)
+    mistakes = [f["message"] for f in static_feedback if f.get("type") in ("error", "warning")]
+    has_syntax_error = any(f.get("type") == "error" for f in static_feedback)
+    
+    if has_syntax_error or len(mistakes) > 0:
+        return {
+            "status": "fail",
+            "message": f"We detected some issues with your {lang.capitalize()} code. Please review the mistakes below.",
+            "mistakes": mistakes,
+            "fixed_code": code,
+            "alternative": "Tip: Always check syntax rules specific to the language you are practicing."
+        }
+        
+    # 2. If no static errors, check against basic AI engine
+    try:
+        ai_result = analyze_code_with_ai(code, lang)
+        
+        # Format the feedback into an array of strings
+        ai_feedbacks = []
+        for f in ai_result.get("feedback", []):
+            if isinstance(f, dict) and "message" in f:
+                if mode == "red_team" and f["type"] == "error":
+                     # Prioritize red team exploit messages
+                     ai_feedbacks.insert(0, f["message"])
+                else:
+                     ai_feedbacks.append(f["message"])
+            elif isinstance(f, str):
+                ai_feedbacks.append(f)
+                
+        alternative_text = "Your logic looks optimal for this scope!"
+        if ai_feedbacks:
+            alternative_text = "Here are some generic thoughts or improvements:\n" + "\n".join(ai_feedbacks)
+            
+        fixed_code_result = ai_result.get("refactored_code", code)
+        status_msg = f"Great job! Your {lang.capitalize()} code looks solid and has no static errors."
+
+        if mode == "socratic":
+            fixed_code_result = "HIDDEN. Socratic mode prevents revealing the full refactored code."
+            alternative_text = "SOCRATIC MENTOR:\n"
+            if len(ai_feedbacks) == 0:
+                alternative_text += "Code looks good. What are the edge cases for this logic?"
+            else:
+                for f in ai_feedbacks:
+                    alternative_text += f"I noticed an issue: {f} How would you refactor this to be cleaner or safer?\n"
+        
+        elif mode == "code_golf":
+            lines = [l for l in code.split('\\n') if l.strip()]
+            line_count = len(lines)
+            if line_count <= 5:
+                status_msg = f"Incredible! You solved this in just {line_count} lines! True Code Golf Mastery."
+                ai_feedbacks = ["You kept the AST node footprint incredibly small."]
+            else:
+                status_msg = f"Too long! Your code took {line_count} lines. Can you do it in 5 lines or fewer?"
+                ai_feedbacks.insert(0, "Try using list comprehensions or ternary operators.")
+        
+        elif mode == "chaos_monkey":
+            import random
+            mutations = {" + ": " - ", " - ": " + ", " > ": " >= ", " < ": " <= ", " == ": " != "}
+            mutated_code = code
+            possible_muts = [k for k in mutations.keys() if k in code]
+            if possible_muts:
+                target = random.choice(possible_muts)
+                mutated_code = mutated_code.replace(target, mutations[target], 1)
+                
+            status_msg = "CHAOS MONKEY HAS STRUCK!"
+            ai_feedbacks = ["I successfully sneaked a microscopic bug into your code. Can you find the exact logic operator I changed?"]
+            fixed_code_result = mutated_code
+            alternative_text = "Good luck playing detective! Copy the corrected code back into your editor to run it."
+            
+        if persona == "linus":
+            status_msg = "LINUS MODE: Your code works, but frankly, it's a mess. 🐧"
+            if len(ai_feedbacks) == 0:
+                alternative_text = "Miraculously, I have no complaints. Merge it."
+            else:
+                alternative_text = "Why do you write code like this? Fix the following instantly:\n" + "\n".join(ai_feedbacks)
+        elif persona == "zen":
+            status_msg = "ZEN MASTER MODE: The data flows, the syntax compiles. 🌸"
+            if len(ai_feedbacks) == 0:
+                alternative_text = "Your logic is at peace with the machine. Breathe."
+            else:
+                alternative_text = "Consider finding balance by resolving these ripples in your code:\n" + "\n".join(ai_feedbacks)
+        elif persona == "startup":
+            status_msg = "STARTUP BRO MODE: LGTM, ship it! We need to hit 1M MRR. 🚀"
+            alternative_text = "Who cares about technical debt? We'll refactor it when we raise our Series A. Ship it!"
+
+        return {
+            "status": "success",
+            "message": status_msg,
+            "mistakes": ai_feedbacks, # If there are any non-fatal mistakes/warnings
+            "fixed_code": fixed_code_result,
+            "alternative": alternative_text
+        }
+
+    except Exception as e:
+        return {
+            "status": "success",
+            "message": f"Compiled and ran successfully, but mentor analysis skipped due to error: {str(e)}",
+            "mistakes": [],
+            "fixed_code": code,
+            "alternative": "No alternative suggestions available."
+        }
+
+@router.post("/practice/complexity")
+async def analyze_complexity(request: RunRequest):
+    code = request.code
+    lang = request.language.lower()
+    comp = "O(1)"
+    carbon = "0.01g CO₂ / 10k ops"
+    
+    if "for " in code or "while " in code:
+        comp = "O(N)"
+        carbon = "0.45g CO₂ / 100k ops"
+        if "for " in code:
+             blocks = code.split("for ")
+             for i in range(1, len(blocks)):
+                 if "for " in blocks[i] or "while " in blocks[i]:
+                     comp = "O(N²)"
+                     carbon = "2.80g CO₂ / 1m ops 🌳(Warning!)"
+                     break
+                 
+    return {"complexity": comp, "carbon": carbon}
