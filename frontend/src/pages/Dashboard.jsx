@@ -5,9 +5,7 @@ import {
   Plus, Code2, TrendingUp, AlertTriangle,
   CheckCircle2, ArrowRight, Clock, Loader2, Sparkles, RotateCcw, Target
 } from 'lucide-react';
-
-const API_BASE = 'http://localhost:8000/api';
-
+const API_BASE = import.meta.env.VITE_API_BASEURL || 'http://localhost:8000/api';
 const langBadge = (lang) => {
   const map = {
     python:     'bg-indigo-500/20 text-indigo-400 border-indigo-500/20',
