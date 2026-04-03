@@ -11,7 +11,7 @@ const Navbar = () => {
           <Code2 size={22} className="stroke-[2.5]" />
         </div>
         <h1 className="text-xl font-bold text-white flex gap-2 items-center tracking-tight">
-          AI Code Reviewer
+          MarrowCode
           <Sparkles size={16} className="text-accent opacity-80" />
         </h1>
       </div>
@@ -19,51 +19,15 @@ const Navbar = () => {
       {/* Navigation center-right */}
       <nav className="flex items-center gap-4">
         <NavLink 
-          to="/" 
-          className={({ isActive }) => 
-            `flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-              isActive ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-200'
-            }`
-          }
-        >
-          <LayoutDashboard size={16} />
-          Dashboard
-        </NavLink>
-        
-        <NavLink 
-          to="/new" 
-          className={({ isActive }) => 
-            `flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-              isActive ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-200'
-            }`
-          }
-        >
-          <Plus size={16} />
-          New Review
-        </NavLink>
-
-        <NavLink 
-          to="/history" 
-          className={({ isActive }) => 
-            `flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-              isActive ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-200'
-            }`
-          }
-        >
-          <History size={16} />
-          History
-        </NavLink>
-        
-        <NavLink 
           to="/practice" 
           className={({ isActive }) => 
-            `flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-              isActive ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:text-slate-200'
+            `flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-sm ${
+              isActive ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'text-slate-500 hover:text-white'
             }`
           }
         >
-          <Code2 size={16} />
-          Practice
+          <Code2 size={18} />
+          Practice Arena
         </NavLink>
       </nav>
     </header>

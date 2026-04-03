@@ -21,7 +21,7 @@ function App() {
           <Navbar />
         </div>
 
-        <div className="w-full max-w-5xl px-8 z-10 flex flex-col h-[calc(100vh-80px)]">
+        <div className="w-full max-w-7xl px-8 z-10 flex flex-col h-[calc(100vh-80px)]">
           <div className="flex-grow mt-10">
             <Routes>
               <Route path="/" element={<Dashboard />} />

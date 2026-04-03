@@ -18,6 +18,13 @@ class ScoreScores(BaseModel):
     readability: int
     performance: int
 
+class AdvancedExplanations(BaseModel):
+    line_by_line: List[str]
+    logic_simplification: str
+    real_world_use_case: str
+    theoretical_concepts: List[str]
+    diagram: Optional[str] = None
+
 class ReviewResultResponse(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -26,3 +33,4 @@ class ReviewResultResponse(BaseModel):
     refactored_code: str
     scores: ScoreScores
     feedback: List[FeedbackItem]
+    explanations: Optional[AdvancedExplanations] = None

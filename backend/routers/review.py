@@ -2,9 +2,10 @@ from fastapi import APIRouter, HTTPException
 from models import CodeSubmission, ReviewResultResponse
 from services.ai_engine import analyze_code_with_ai
 from services.static_analyzer import run_static_analysis
+from services.concepts import PRACTICE_CONCEPTS
 from pydantic import BaseModel
 from typing import Optional
-import subprocess, tempfile, os, sys, shutil
+import subprocess, tempfile, os, sys, shutil, re
 
 class RunRequest(BaseModel):
     code: str
@@ -12,12 +13,20 @@ class RunRequest(BaseModel):
     stdin: Optional[str] = ""
     mode: Optional[str] = "standard"
     persona: Optional[str] = "standard"
+    concept_id: Optional[str] = None
 
 router = APIRouter()
 
 # In-memory storage for demonstration. 
 # In production, replace this with MongoDB calls.
 history_db = []
+
+@router.get("/practice/concepts")
+async def get_practice_concepts():
+    """
+    Returns available code practice concepts.
+    """
+    return PRACTICE_CONCEPTS
 
 @router.post("/analyze", response_model=ReviewResultResponse)
 async def analyze_code(submission: CodeSubmission):
@@ -74,6 +83,7 @@ async def get_history():
 async def run_code(request: RunRequest):
     code = request.code
     lang = request.language.lower()
+    print(f"[RUN] Lang: {lang}, Input length: {len(request.stdin or '')}")
     
     if lang == "python":
         cmd = [sys.executable]
@@ -88,7 +98,8 @@ async def run_code(request: RunRequest):
             raise HTTPException(status_code=500, detail="Java compiler (javac) is not installed.")
         # Java needs a file matching its public class name. Let's find it.
         import re
-        match = re.search(r"public\s+class\s+(\w+)", code)
+        # Look for [public] class ClassName
+        match = re.search(r"(?:public\s+)?class\s+(\w+)", code)
         class_name = match.group(1) if match else "Main"
         
         # Create a temp dir for Java compilation
@@ -104,10 +115,15 @@ async def run_code(request: RunRequest):
                 shutil.rmtree(temp_dir)
                 return {"stdout": "", "stderr": f"Compilation Error:\n{compile_proc.stderr}", "exit_code": compile_proc.returncode}
             
+            # Ensure stdin has a trailing newline for Java/C++ scannners
+            stdin_payload = (request.stdin or "")
+            if stdin_payload and not stdin_payload.endswith('\n'):
+                stdin_payload += '\n'
+
             # Run
             run_proc = subprocess.Popen(["java", "-cp", temp_dir, class_name], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             try:
-                out, err = run_proc.communicate(input=request.stdin, timeout=10)
+                out, err = run_proc.communicate(input=stdin_payload, timeout=10)
             except subprocess.TimeoutExpired:
                 run_proc.kill()
                 out, err = run_proc.communicate()
@@ -145,7 +161,7 @@ async def run_code(request: RunRequest):
             # Run
             run_proc = subprocess.Popen([exe_file], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             try:
-                out, err = run_proc.communicate(input=request.stdin, timeout=10)
+                out, err = run_proc.communicate(input=request.stdin or "", timeout=10)
             except subprocess.TimeoutExpired:
                 run_proc.kill()
                 out, err = run_proc.communicate()
@@ -170,7 +186,7 @@ async def run_code(request: RunRequest):
     try:
         proc = subprocess.Popen(cmd + [temp_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
-            out, err = proc.communicate(input=request.stdin, timeout=10)
+            out, err = proc.communicate(input=request.stdin or "", timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
             out, err = proc.communicate()
@@ -236,6 +252,9 @@ async def evaluate_practice(request: RunRequest):
             
         fixed_code_result = ai_result.get("refactored_code", code)
         status_msg = f"Great job! Your {lang.capitalize()} code looks solid and has no static errors."
+        
+        # Use AI-suggested alternative if available, otherwise fallback
+        alternative_text = ai_result.get("alternative", "Your logic looks optimal for this scope!")
 
         if mode == "socratic":
             fixed_code_result = "HIDDEN. Socratic mode prevents revealing the full refactored code."
@@ -291,7 +310,8 @@ async def evaluate_practice(request: RunRequest):
             "message": status_msg,
             "mistakes": ai_feedbacks, # If there are any non-fatal mistakes/warnings
             "fixed_code": fixed_code_result,
-            "alternative": alternative_text
+            "alternative": alternative_text,
+            "explanations": ai_result.get("explanations")
         }
 
     except Exception as e:

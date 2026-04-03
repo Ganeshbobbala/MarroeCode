@@ -37,7 +37,7 @@ def run_static_analysis(code: str, language: str) -> list:
 
         try:
             result = subprocess.run(
-                ['pylint', temp_path, '--output-format=text',
+                [sys.executable, '-m', 'pylint', temp_path, '--output-format=text',
                  '--disable=C,R', '--score=no'],
                 capture_output=True, text=True, timeout=15
             )

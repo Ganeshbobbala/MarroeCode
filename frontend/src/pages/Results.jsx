@@ -7,6 +7,34 @@ import {
   Code2, Play, CheckCircle, Copy, Check, Terminal, Loader2
 } from 'lucide-react';
 import axios from 'axios';
+import mermaid from 'mermaid';
+
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'dark',
+  securityLevel: 'loose',
+  themeVariables: {
+    primaryColor: '#6366f1',
+    lineColor: '#60a5fa',
+    textColor: '#e2e8f0'
+  }
+});
+
+const Mermaid = ({ chart }) => {
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    if (ref.current && chart) {
+      mermaid.contentLoaded();
+      // Use a unique ID for each render to avoid conflicts
+      const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+      ref.current.innerHTML = `<div class="mermaid" id="${id}">${chart}</div>`;
+      mermaid.init(undefined, ref.current.getElementsByClassName('mermaid'));
+    }
+  }, [chart]);
+
+  return <div ref={ref} className="flex justify-center p-4 bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-x-auto" />;
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -288,7 +316,7 @@ const RunPanel = ({ code, language }) => {
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-const TABS = ['Issues', 'Original', 'Patched', 'Refactored', 'Run Code'];
+const TABS = ['Issues', 'Deep Dive', 'Original', 'Patched', 'Refactored', 'Run Code'];
 
 const Results = () => {
   const navigate = useNavigate();
@@ -424,6 +452,7 @@ const Results = () => {
               }`}
             >
               {t === 'Issues'    && <AlertCircle size={13} />}
+              {t === 'Deep Dive' && <Sparkles size={13} />}
               {t === 'Original'  && <Code2 size={13} />}
               {t === 'Patched'   && <CheckCircle size={13} />}
               {t === 'Refactored'&& <Sparkles size={13} />}
@@ -457,6 +486,82 @@ const Results = () => {
           ) : (
             feedback.map((item, idx) => <IssueCard key={idx} item={item} index={idx} />)
           )
+        )}
+
+        {/* Deep Dive Tab */}
+        {tab === 'Deep Dive' && (
+          <div className="flex flex-col gap-6 animate-fade-in mb-8 p-1">
+            {/* Logic Simplification */}
+            <div className="glass-panel p-6 border-l-4 border-l-indigo-500">
+               <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                 <Sparkles size={18} className="text-indigo-400" />
+                 Logic Simplification
+               </h3>
+               <p className="text-slate-300 text-sm leading-relaxed">
+                 {result.explanations?.logic_simplification || "Analyzing common patterns in this code block..."}
+               </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               {/* Real World Use Case */}
+               <div className="glass-panel p-6">
+                  <h3 className="text-white font-bold mb-3 flex items-center gap-2 text-sky-400">
+                    <Info size={18} />
+                    Real-World Use Case
+                  </h3>
+                  <p className="text-slate-300 text-sm leading-relaxed italic">
+                    "{result.explanations?.real_world_use_case || "Searching for common application scenarios..."}"
+                  </p>
+               </div>
+
+               {/* Theoretical Concepts */}
+               <div className="glass-panel p-6">
+                  <h3 className="text-white font-bold mb-3 flex items-center gap-2 text-emerald-400">
+                    <Code2 size={18} />
+                    Key Concepts
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {(result.explanations?.theoretical_concepts || ["Data Structures", "Control Flow"]).map((concept, i) => (
+                      <span key={i} className="px-3 py-1 bg-slate-800 text-slate-300 text-xs rounded-full border border-slate-700">
+                        {concept}
+                      </span>
+                    ))}
+                  </div>
+               </div>
+            </div>
+
+            {/* Line by Line Breakdown */}
+            <div className="glass-panel p-6">
+               <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-amber-400">
+                 <Terminal size={18} />
+                 Line-by-Line Breakdown
+               </h3>
+               <div className="space-y-3">
+                 {(result.explanations?.line_by_line || ["Synthesizing code context..."]).map((line, i) => (
+                   <div key={i} className="flex gap-4 group">
+                     <span className="text-slate-500 font-mono text-xs w-6 shrink-0 mt-0.5">{i+1}</span>
+                     <p className="text-slate-300 text-sm group-hover:text-white transition-colors leading-relaxed">
+                       {line}
+                     </p>
+                   </div>
+                 ))}
+               </div>
+            </div>
+
+            {/* Visual Logic Flow - Diagram */}
+            {result.explanations?.diagram && (
+              <div className="glass-panel p-6">
+                <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-primary">
+                  <GitBranch size={18} />
+                  Logic Representation (Diagram)
+                </h3>
+                <Mermaid chart={result.explanations.diagram} />
+                <p className="text-slate-500 text-[11px] mt-4 text-center italic">
+                  * Visual representation of the core structural logic and execution path.
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Original Code Tab */}

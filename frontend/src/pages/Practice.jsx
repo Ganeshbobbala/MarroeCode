@@ -1,303 +1,352 @@
-import React, { useState, useEffect } from 'react';
-import { Play, Check, AlertCircle, BookOpen, Lightbulb, Code2, Copy, Sparkles, Terminal, ChevronDown, Bot } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Play, Check, AlertCircle, BookOpen, Lightbulb, Code2,
+  Sparkles, Terminal, ChevronDown, Bot, GitBranch,
+  Trophy, Zap, ShieldCheck, HelpCircle, Layers, Clock, Loader2, Target, Briefcase
+} from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import axios from 'axios';
+import mermaid from 'mermaid';
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  securityLevel: 'loose',
+  fontFamily: 'Inter, system-ui, sans-serif'
+});
+
+const Mermaid = ({ chart }) => {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current && chart) {
+      const uniqueId = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+      ref.current.innerHTML = `<div class="mermaid" id="${uniqueId}">${chart}</div>`;
+      try {
+        mermaid.contentLoaded();
+        mermaid.init(undefined, ref.current.getElementsByClassName('mermaid'));
+      } catch (e) {
+        console.error("Mermaid error:", e);
+      }
+    }
+  }, [chart]);
+
+  return <div ref={ref} className="flex justify-center p-4 bg-slate-900/80 rounded-xl border border-indigo-500/20 overflow-x-auto my-4 transition-all hover:border-indigo-500/40" />;
+};
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const BOILERPLATES = {
-  java: `public class Main {
-    public static void main(String[] args) {
-        // Write your code here
-        
-        System.out.println("Hello, World!");
-    }
-}`,
-  python: `def main():
-    # Write your code here
-    print("Hello, World!")
-
-if __name__ == "__main__":
-    main()
-`,
-  javascript: `function main() {
-    // Write your code here
-    console.log("Hello, World!");
-}
-
-main();
-`,
-  cpp: `#include <iostream>
-using namespace std;
-
-int main() {
-    // Write your code here
-    cout << "Hello, World!" << endl;
-    return 0;
-}
-`
-};
-
-const REFACTOR_BOILERPLATES = {
-  java: `public class Main {\n    public static void main(String[] args) {\n        int n = 10;\n        for(int i=0; i<n; i++) {\n            for(int j=0; j<n; j++) {\n                System.out.println(i + " " + j);\n            }\n        }\n    }\n}`,
-  python: `def main():\n    var1 = []\n    for i in range(10):\n        for j in range(10):\n            var1.append(i + j)\n    print(var1)\n\nmain()`,
-  javascript: `var n = 10;\nfor(var i=0; i<n; i++) {\n    for(var j=0; j<n; j++) {\n        console.log("sum", i+j);\n    }\n}`,
-  cpp: `#include <iostream>\nusing namespace std;\nint main() {\n    for(int i=0; i<10; i++) {\n        for(int j=0; j<10; j++) cout << i+j;\n    }\n    return 0;\n}`
+  java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, Practice!");\n    }\n}`,
+  python: `def main():\n    print("Hello, Practice!")\n\nif __name__ == "__main__":\n    main()`,
+  javascript: `console.log("Hello, Practice!");`,
+  cpp: `#include <iostream>\nusing namespace std;\nint main() {\n    cout << "Hello, Practice!" << endl;\n    return 0;\n}`
 };
 
 const Practice = () => {
-  const [language, setLanguage] = useState('java');
+  const [language, setLanguage] = useState('python');
   const [mode, setMode] = useState('standard');
   const [persona, setPersona] = useState('standard');
-  const [code, setCode] = useState(BOILERPLATES['java']);
+  const [code, setCode] = useState("");
   const [output, setOutput] = useState(null);
   const [evalResult, setEvalResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [complexity, setComplexity] = useState('O(1)');
-  const [carbon, setCarbon] = useState('0.01g CO₂ / 10k ops');
-  const [timeLeft, setTimeLeft] = useState(null);
+  const [carbon, setCarbon] = useState('0.01g CO₂');
+  const [concepts, setConcepts] = useState([]);
+  const [selectedConcept, setSelectedConcept] = useState(null);
+  const [stdin, setStdin] = useState('');
 
   useEffect(() => {
-    let baseCode = BOILERPLATES[language];
-    if (mode === 'refactor') {
-        baseCode = REFACTOR_BOILERPLATES[language];
-    } else if (mode === 'speed_run') {
-        baseCode = BOILERPLATES[language].replace(";", "").replace(")", "");
-        setTimeLeft(30);
-    } else {
-        setTimeLeft(null);
+    axios.get(`${API_BASE}/practice/concepts`)
+      .then(res => {
+        setConcepts(res.data);
+        if (res.data.length > 0 && !selectedConcept) {
+          setSelectedConcept(res.data[0]);
+        }
+      })
+      .catch(err => console.error("Concepts fetch failed", err));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedConcept && concepts.length> 0) {
+      setSelectedConcept(concepts[0]);
     }
-    setCode(baseCode);
-    setOutput(null);
-    setEvalResult(null);
-  }, [language, mode]);
-
-  useEffect(() => {
-    let timer;
-    if (timeLeft !== null && timeLeft > 0) {
-        timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    } else if (timeLeft === 0) {
-        setEvalResult({ status: 'fail', message: 'TIME IS UP! 💥', mistakes: ['You failed to fix the syntax error within 30 seconds!'], fixed_code: 'Try again by switching the mode.', alternative: '' });
-        setTimeLeft(null);
-    }
-    return () => clearInterval(timer);
-  }, [timeLeft]);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-        axios.post(`${API_BASE}/practice/complexity`, { code, language }).then(res => {
-            setComplexity(res.data.complexity);
-            if(res.data.carbon) setCarbon(res.data.carbon);
-        }).catch(err => setComplexity("?"));
-    }, 500);
-    return () => clearTimeout(handler);
-  }, [code, language]);
+  }, [concepts]); // Removed language from dependencies to prevent accidental logic resets
 
   const runCode = async () => {
     setIsSubmitting(true);
     setEvalResult(null);
     try {
-      const res = await axios.post(`${API_BASE}/run`, {
-        code,
-        language
-      });
+      const res = await axios.post(`${API_BASE}/run`, { code, language, stdin });
       setOutput(res.data);
-      
+
       const evalRes = await axios.post(`${API_BASE}/practice/evaluate`, {
-        code,
-        language,
-        mode,
-        persona
+        code, language, mode, persona, stdin,
+        concept_id: selectedConcept?.id
       });
-      if (mode === 'speed_run') setTimeLeft(null); // Stop timer on submit
       setEvalResult(evalRes.data);
     } catch (err) {
-      setOutput({ stderr: "Error evaluating code. " + (err.response?.data?.detail || "") });
+      setOutput({ stderr: "Execution Error: " + (err.response?.data?.detail || "Network Failure") });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] animate-fade-in -mx-6 -my-8 px-6 py-6 pb-0">
-      
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-500/20 rounded-lg border border-indigo-500/30">
-            <BookOpen size={20} className="text-indigo-400" />
+    <div className="flex flex-row gap-4 h-[calc(100vh-140px)] min-h-[600px] animate-in fade-in duration-700">
+      {/* 2. MIDDLE: Editor & Code Control */}
+      <div className="flex-1 flex flex-col gap-4 min-w-0">
+
+        {/* Top bar for Editor */}
+        <div className="bg-surface/40 border border-white/5 rounded-2xl p-3 flex items-center justify-between backdrop-blur-sm px-5">
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="flex items-center gap-2 bg-slate-900/50 border border-white/5 rounded-lg px-3 py-1.5 focus-within:ring-1 ring-primary transition-all">
+              <Code2 size={16} className="text-primary" />
+              <select
+                value={language}
+                onChange={e => setLanguage(e.target.value)}
+                className="bg-transparent border-none text-sm font-bold text-slate-200 outline-none cursor-pointer appearance-none pr-4"
+              >
+                <option value="python" className="bg-slate-900 text-white">Python</option>
+                <option value="java" className="bg-slate-900 text-white">Java</option>
+                <option value="javascript" className="bg-slate-900 text-white">JS</option>
+                <option value="cpp" className="bg-slate-900 text-white">C++</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-900/50 border border-white/5 rounded-lg px-3 py-1.5 focus-within:ring-1 ring-primary transition-all">
+              <Bot size={16} className="text-rose-400" />
+              <select
+                value={persona}
+                onChange={e => setPersona(e.target.value)}
+                className="bg-transparent border-none text-sm font-bold text-slate-200 outline-none cursor-pointer appearance-none pr-4"
+              >
+                <option value="standard" className="bg-slate-900 text-white">Standard AI</option>
+                <option value="linus" className="bg-slate-900 text-white">Linus Mode</option>
+                <option value="zen" className="bg-slate-900 text-white">Zen Master</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-white leading-tight">Interactive Practice</h2>
-            <p className="text-xs text-slate-400 font-medium">Generic Problem Workspace</p>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="hidden md:flex flex-col items-end mr-2">
+              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-tighter">Est. Efficiency</span>
+              <span className="text-xs font-mono font-bold text-emerald-400">{complexity}</span>
+            </div>
+            <button
+              onClick={runCode}
+              disabled={isSubmitting}
+              className="bg-primary hover:bg-primaryHover disabled:opacity-50 text-white px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95"
+            >
+              {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} fill="currentColor" />}
+              Submit
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-bold uppercase tracking-wide cursor-default">
-            Level: Any
-          </span>
-          <div className="relative">
-            <select
-              value={persona}
-              onChange={(e) => setPersona(e.target.value)}
-              className="appearance-none bg-rose-900/40 text-rose-200 border border-rose-500/50 rounded-lg pl-3 pr-8 py-1.5 text-xs font-bold uppercase tracking-wide cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-500 mr-2"
-            >
-              <option value="standard">AI: Normal Mode</option>
-              <option value="linus">AI: Aggressive Linus</option>
-              <option value="zen">AI: Zen Master</option>
-              <option value="startup">AI: Startup Tech Bro</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-rose-400 pointer-events-none" />
-          </div>
 
-          <div className="relative">
-            <select
-              value={mode}
-              onChange={(e) => setMode(e.target.value)}
-              className="appearance-none bg-indigo-900/50 text-indigo-200 border border-indigo-500/50 rounded-lg pl-3 pr-8 py-1.5 text-xs font-bold uppercase tracking-wide cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 mr-2"
-            >
-              <option value="standard">Standard Practice</option>
-              <option value="socratic">Socratic Mentor</option>
-              <option value="refactor">Refactoring Arena</option>
-              <option value="chaos_monkey">Chaos Monkey (Bug Hunt)</option>
-              <option value="speed_run">Syntax Speed-Runner</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none" />
+        {/* Editor Area */}
+        <div className="flex-1 bg-[#1e1e1e] border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative group">
+          <div className="absolute top-4 right-4 z-20 flex gap-2">
+            <span className="bg-indigo-600/80 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black border border-white/20 uppercase tracking-widest text-white flex items-center gap-1 shadow-lg">
+              <Zap size={10} fill="currentColor" /> {language.toUpperCase()} ENGINE ACTIVE
+            </span>
           </div>
+          <Editor
+            language={language === 'cpp' ? 'cpp' : language}
+            theme="vs-dark"
+            value={code}
+            onChange={setCode}
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              padding: { top: 20 },
+              fontFamily: 'JetBrains Mono, monospace',
+              lineNumbers: 'on',
+              roundedSelection: true,
+              scrollBeyondLastLine: false,
+            }}
+          />
+        </div>
 
-          <div className="relative">
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              className="appearance-none bg-slate-800 text-slate-200 border border-slate-600/50 rounded-lg pl-3 pr-8 py-1.5 text-xs font-bold uppercase tracking-wide cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="java">Java</option>
-              <option value="python">Python</option>
-              <option value="javascript">JavaScript</option>
-              <option value="cpp">C++</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        {/* Console / Stdin */}
+        <div className="h-48 grid grid-cols-2 gap-4">
+          <div className="bg-black/40 border border-white/5 rounded-2xl flex flex-col backdrop-blur-sm">
+            <div className="p-3 border-b border-white/5 flex items-center gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+              <Terminal size={14} /> Input Stream
+            </div>
+            <textarea
+              className="flex-1 bg-transparent p-4 text-xs font-mono text-amber-200 outline-none resize-none placeholder-slate-700"
+              placeholder="Feed data to stdin..."
+              value={stdin}
+              onChange={e => setStdin(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!isSubmitting) runCode();
+                }
+              }}
+            />
           </div>
-
-          {timeLeft !== null && (
-              <div className="flex items-center ml-auto gap-2 text-rose-500 font-bold bg-rose-500/10 px-3 py-1.5 rounded border border-rose-500/20 animate-pulse">
-                  <Clock size={16} /> 00:{timeLeft.toString().padStart(2, '0')}
-              </div>
-          )}
+          <div className="bg-black/60 border border-white/5 rounded-2xl flex flex-col backdrop-blur-sm">
+            <div className="p-3 border-b border-white/5 flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+              <div className="flex items-center gap-2">< Zap size={14} className="text-amber-500" /> Output</div>
+              {output && (
+                <span className={`px-2 py-0.5 rounded ${output.exit_code === 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-rose-400 bg-rose-500/10'}`}>
+                  EXIT {output.exit_code}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 p-4 text-xs font-mono overflow-y-auto whitespace-pre-wrap">
+              {isSubmitting && <div className="text-indigo-400 animate-pulse">Processing submission...</div>}
+              {output?.stdout && <div className="text-slate-300">{output.stdout}</div>}
+              {output?.stderr && <div className="text-rose-400/90">{output.stderr}</div>}
+              {!output && !isSubmitting && <div className="text-slate-700 font-italic text-[11px]">System idle. Awaiting compilation.</div>}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-4 flex-1 mb-6 min-h-0">
-        
-        {/* Left Panel: Mentor Feedback */}
-        <div className="w-[45%] flex flex-col gap-4">
-          <div className="flex-1 overflow-auto bg-surface/80 border border-slate-700/50 rounded-xl p-6 relative">
-            {!evalResult ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-6 gap-4 opacity-70">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-2">
-                  <Bot size={32} className="text-indigo-400" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">Ready for Review</h3>
-                  <p className="text-slate-400 text-sm max-w-sm leading-relaxed">
-                    Select a language, write your problem-solving code on the right, and press <b>Submit Code</b>. I'll provide real-time mentor feedback and execution results here!
-                  </p>
-                </div>
+      {/* 3. RIGHT: Mentor & Analysis */}
+      <div className="w-[30%] flex flex-col gap-4 min-w-[320px]">
+        {/* Active Goal */}
+        {!code.trim() ? (
+          <div className="bg-slate-900/30 border border-white/5 rounded-2xl p-8 flex flex-col items-center justify-center text-center opacity-60">
+            <Code2 size={40} className="text-slate-700 mb-4" />
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+              Sandbox Active<br/>
+              <span className="text-[10px] font-normal lowercase tracking-normal">Write any logic. The AI will identify your mission and provide deep insights.</span>
+            </p>
+          </div>
+        ) : (
+          <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden group animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Lightbulb size={60} />
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles size={18} className="text-indigo-400" />
+              <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                Universal Logic Mission
+              </h3>
+            </div>
+            <p className="text-sm text-slate-300 leading-relaxed font-bold">
+              {code.toLowerCase().includes('even') || code.toLowerCase().includes('% 2') 
+                ? "Goal: Mastering Even/Odd Logic & Numerical Parity."
+                : code.toLowerCase().includes('age')
+                ? "Goal: Mastering Age-Based Eligibility & Conditionals."
+                : "Goal: Perfecting Custom Logic Architecture."
+              }
+            </p>
+            <p className="text-[11px] text-slate-400 mt-2 leading-tight">
+              The AI is currently analyzing your specific snippet for theoretical depth and real-world application.
+            </p>
+          </div>
+        )}
+
+        {/* Mentor Results */}
+        <div className="flex-1 bg-surface/40 border border-white/5 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm">
+          <div className="p-4 border-b border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={18} className="text-emerald-500" />
+              <span className="text-sm font-bold text-white tracking-tight">AI Insights</span>
+            </div>
+            {evalResult && (
+              <div className={`px-2 py-1 rounded text-[10px] font-black uppercase ${evalResult.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {evalResult.status}
               </div>
-            ) : (
-              <div className="flex flex-col gap-6 text-sm">
-                <div className="flex items-center gap-3 border-b border-slate-700/50 pb-4 mb-2">
-                  <div className="p-2 bg-indigo-500/20 rounded-lg">
-                    <Bot size={20} className="text-indigo-400" />
-                  </div>
-                  <h2 className="text-xl font-bold text-white">Mentor Analysis</h2>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar text-[13px]">
+            {!evalResult && !isSubmitting && (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-4 opacity-40">
+                <HelpCircle size={40} className="text-indigo-500" />
+                <p className="text-slate-400 font-medium">Complete the challenge and hit <b>Submit</b> to unlock AI mentor analytics.</p>
+              </div>
+            )}
+
+            {evalResult && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                {/* Status Message */}
+                <div className={`p-4 rounded-xl border mb-6 ${evalResult.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100' : 'bg-rose-500/5 border-rose-500/20 text-rose-100'}`}>
+                  <p className="leading-relaxed">{evalResult.message}</p>
                 </div>
 
-                <div className={`p-4 rounded-xl border flex gap-3 shrink-0 ${evalResult.status === 'success' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30'}`}>
-                   {evalResult.status === 'success' ? <Check size={24} className="text-emerald-400 shrink-0 mt-0.5" /> : <AlertCircle size={24} className="text-rose-400 shrink-0 mt-0.5" />}
-                   <div>
-                     <h3 className={`font-bold text-lg mb-1 ${evalResult.status === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {evalResult.status === 'success' ? 'Code Verified!' : 'Issues Detected'}
-                     </h3>
-                     <p className="text-slate-300 leading-relaxed text-[13px]">{evalResult.message}</p>
-                   </div>
-                </div>
-
-                
-                {evalResult.mistakes && evalResult.mistakes.length > 0 && (
-                  <div className="bg-[#0d1117] border border-slate-700/50 p-5 rounded-xl shrink-0">
-                    <h4 className="text-rose-400 font-bold mb-3 flex items-center gap-2"><AlertCircle size={16}/> Mistakes Detected</h4>
-                    <ul className="list-disc list-inside text-slate-400 space-y-1">
-                      {evalResult.mistakes.map((m, i) => <li key={i}>{m}</li>)}
-                    </ul>
+                {/* Diagram */}
+                {evalResult.explanations?.diagram && (
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                      <GitBranch size={14} /> Logic flow-chart
+                    </div>
+                    <Mermaid chart={evalResult.explanations.diagram} />
                   </div>
                 )}
 
-                <div className="bg-[#0d1117] border border-slate-700/50 p-5 rounded-xl shrink-0">
-                    <h4 className="text-indigo-400 font-bold mb-3 flex items-center gap-2"><Sparkles size={16}/> Corrected / Optimized Code</h4>
-                    <pre className="text-slate-300 font-mono text-xs overflow-x-auto p-3 bg-black/40 rounded-lg border border-slate-700/50 whitespace-pre-wrap">
-                      {evalResult.fixed_code}
-                    </pre>
+                {/* Theory & Real World - Explained after submission */}
+                <div className="space-y-6 pt-4 border-t border-white/5">
+                  {selectedConcept?.theory && (
+                    <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2 text-indigo-300 font-bold uppercase text-[10px] tracking-widest">
+                        <BookOpen size={14} /> Core Theory
+                      </div>
+                      <p className="text-slate-300 leading-relaxed text-xs">
+                        {selectedConcept.theory}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedConcept?.real_world && (
+                    <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2 text-amber-300 font-bold uppercase text-[10px] tracking-widest">
+                        <Briefcase size={14} /> Real-World Application
+                      </div>
+                      <p className="text-slate-300 leading-relaxed text-xs">
+                        {selectedConcept.real_world}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                <div className="bg-amber-500/5 border border-amber-500/20 p-5 rounded-xl shrink-0">
-                    <h4 className="text-amber-400 font-bold mb-3 flex items-center gap-2"><Lightbulb size={16}/> Alternative Approach</h4>
-                    <pre className="text-amber-200/80 font-mono text-xs overflow-x-auto whitespace-pre-wrap">
-                      {evalResult.alternative}
-                    </pre>
-                </div>
+                {/* Alternative */}
+                {evalResult.alternative && (
+                  <div className="mt-8 mb-8 bg-black/30 border border-indigo-500/10 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2 text-indigo-400 font-bold uppercase text-[10px] tracking-widest">
+                      <Lightbulb size={14} /> Alternative Methodology
+                    </div>
+                    <p className="text-slate-400 leading-relaxed italic">{evalResult.alternative}</p>
+                  </div>
+                )}
+
+                {/* Line by Line */}
+                {evalResult.explanations?.line_by_line && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-4 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                      <Layers size={14} /> Trace Analysis
+                    </div>
+                    <div className="space-y-3">
+                      {evalResult.explanations.line_by_line.map((line, i) => (
+                        <div key={i} className="flex gap-4 group">
+                          <span className="text-slate-600 font-mono text-[10px] pt-1">{i + 1}</span>
+                          <p className="text-slate-400 group-hover:text-slate-200 transition-colors leading-relaxed">{line}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
             )}
           </div>
         </div>
-
-        {/* Right Panel: Editor & Terminal */}
-        <div className="flex-1 flex flex-col gap-4">
-          <div className="flex-1 bg-[#1e1e1e] border border-slate-700/50 rounded-xl overflow-hidden flex flex-col relative">
-            <div className="bg-[#2d2d2d] border-b border-black/40 px-4 py-2 flex items-center justify-between">
-               <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs font-semibold text-slate-300">
-                <span className="flex items-center gap-2"><Code2 size={14} className="text-indigo-400" /> {language === 'java' ? 'Main.java' : language === 'python' ? 'main.py' : language === 'javascript' ? 'main.js' : 'main.cpp'}</span>
-                {complexity !== '?' && <span className={`px-2 py-0.5 rounded-full border whitespace-nowrap ${complexity === 'O(1)' || complexity === 'O(N)' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>Live Speed: {complexity}</span>}
-                {carbon && <span className="px-2 py-0.5 rounded-full border border-emerald-500/40 text-emerald-300 whitespace-nowrap drop-shadow bg-emerald-900/30 hidden sm:inline-block">Eco: {carbon}</span>}
-               </div>
-               <button 
-                onClick={runCode}
-                disabled={isSubmitting}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-4 rounded shadow-lg text-xs transition-colors disabled:opacity-50 flex items-center gap-2"
-               >
-                 {isSubmitting ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Play size={12} fill="currentColor" />}
-                 Submit Code
-               </button>
-            </div>
-            <div className="flex-1 relative">
-              <Editor
-                language={(language === 'cpp' || language === 'c++') ? 'cpp' : language}
-                theme="vs-dark"
-                value={code}
-                onChange={setCode}
-                options={{ minimap: { enabled: false }, fontSize: 13, padding: { top: 16 } }}
-              />
-            </div>
-          </div>
-
-          <div className="h-44 bg-black border border-slate-700/50 rounded-xl overflow-hidden flex flex-col shrink-0">
-             <div className="bg-[#2d2d2d] border-b border-black/40 px-4 py-1.5 flex items-center justify-between text-xs font-semibold text-slate-400">
-                <span className="flex items-center gap-2"><Terminal size={14} /> Execution Output</span>
-                {output && output.exit_code != null && (
-                   <span className={`px-2 rounded ${output.exit_code === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                     Exit {output.exit_code}
-                   </span>
-                )}
-             </div>
-             <div className="flex-1 p-3 overflow-y-auto font-mono text-xs whitespace-pre-wrap text-slate-300">
-                {!output && !isSubmitting && <span className="text-slate-600">Submit your code to see output here.</span>}
-                {isSubmitting && <span className="text-emerald-400 animate-pulse">Running compilation...</span>}
-                {output && output.stdout && <span className="text-slate-200">{output.stdout}</span>}
-                {output && output.stderr && <span className="text-rose-400 block mt-2">{output.stderr}</span>}
-             </div>
-          </div>
-        </div>
-
       </div>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.2); }
+      `}</style>
     </div>
   );
 };
