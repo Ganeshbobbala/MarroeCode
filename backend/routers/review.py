@@ -79,6 +79,28 @@ async def get_history():
     """
     return {"history": history_db}
 
+import re
+
+def interleave_output(stdout_str, stdin_str):
+    """
+    Cleans the output side by removing any text that looks like a prompt 
+    (anything at the start of a line ending in : or ?) to ensure 
+    it only shows up on the input side.
+    """
+    if not stdout_str: return ""
+    
+    # Heuristic: Remove common prompt patterns from the start of each line
+    # Matches text from start of line up to a colon, question mark, or arrow.
+    # Pattern: ^ [any text] [: or ? or >] [optional space]
+    cleaned_lines = []
+    for line in stdout_str.splitlines(keepends=True):
+        # We only remove it if it's at the very beginning (typical for input() prompts)
+        new_line = re.sub(r"^[ \t]*[^:\n\?]+(?::|\?|>)[ \t]*", "", line)
+        if new_line.strip() or line.endswith('\n'):
+            cleaned_lines.append(new_line)
+            
+    return "".join(cleaned_lines)
+
 @router.post("/run")
 async def run_code(request: RunRequest):
     code = request.code
@@ -94,6 +116,20 @@ async def run_code(request: RunRequest):
         cmd = ["node"]
         ext = ".js"
     elif lang == "java":
+        # Check for obvious language mismatch (e.g. Python code in Java engine)
+        # Refined mismatch detection (ensure we don't trip on System.out.print)
+        is_definitely_python = (
+            ("def " in code and ":" in code) or 
+            ("elif " in code) or 
+            ("print(" in code and "System.out.print" not in code)
+        )
+        if is_definitely_python:
+            return {
+                "stdout": "", 
+                "stderr": "Engine Mismatch Error:\nIt looks like you are writing Python code, but the Java engine is active. Please switch to the Python engine.",
+                "exit_code": 1
+            }
+
         if not shutil.which("javac"):
             raise HTTPException(status_code=500, detail="Java compiler (javac) is not installed.")
         # Java needs a file matching its public class name. Let's find it.
@@ -110,10 +146,15 @@ async def run_code(request: RunRequest):
         
         try:
             # Compile
-            compile_proc = subprocess.run(["javac", java_file], capture_output=True, text=True)
+            compile_proc = subprocess.run(["javac", java_file], capture_output=True, text=True, encoding="utf-8")
             if compile_proc.returncode != 0:
                 shutil.rmtree(temp_dir)
-                return {"stdout": "", "stderr": f"Compilation Error:\n{compile_proc.stderr}", "exit_code": compile_proc.returncode}
+                # Check if the error looks like a language mismatch
+                err_msg = compile_proc.stderr
+                if "class, interface, annotation type, enum, record, method or field expected" in err_msg:
+                    err_msg += "\n\nTip: You might have selected the wrong language. This error often occurs when writing Python code in the Java engine."
+                
+                return {"stdout": "", "stderr": f"Compilation Error:\n{err_msg}", "exit_code": compile_proc.returncode}
             
             # Ensure stdin has a trailing newline for Java/C++ scannners
             stdin_payload = (request.stdin or "")
@@ -121,7 +162,9 @@ async def run_code(request: RunRequest):
                 stdin_payload += '\n'
 
             # Run
-            run_proc = subprocess.Popen(["java", "-cp", temp_dir, class_name], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            env = os.environ.copy()
+            env["PYTHONIOENCODING"] = "utf-8"
+            run_proc = subprocess.Popen(["java", "-cp", temp_dir, class_name], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", env=env)
             try:
                 out, err = run_proc.communicate(input=stdin_payload, timeout=10)
             except subprocess.TimeoutExpired:
@@ -131,7 +174,7 @@ async def run_code(request: RunRequest):
             
             shutil.rmtree(temp_dir)
             return {
-                "stdout": out,
+                "stdout": interleave_output(out, request.stdin or ""),
                 "stderr": err,
                 "exit_code": run_proc.returncode
             }
@@ -153,13 +196,15 @@ async def run_code(request: RunRequest):
             
         try:
             # Compile
-            compile_proc = subprocess.run(["g++", cpp_file, "-o", exe_file], capture_output=True, text=True)
+            compile_proc = subprocess.run(["g++", cpp_file, "-o", exe_file], capture_output=True, text=True, encoding="utf-8")
             if compile_proc.returncode != 0:
                 shutil.rmtree(temp_dir)
                 return {"stdout": "", "stderr": f"Compilation Error:\n{compile_proc.stderr}", "exit_code": compile_proc.returncode}
             
             # Run
-            run_proc = subprocess.Popen([exe_file], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            env = os.environ.copy()
+            env["PYTHONIOENCODING"] = "utf-8"
+            run_proc = subprocess.Popen([exe_file], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", env=env)
             try:
                 out, err = run_proc.communicate(input=request.stdin or "", timeout=10)
             except subprocess.TimeoutExpired:
@@ -169,7 +214,7 @@ async def run_code(request: RunRequest):
             
             shutil.rmtree(temp_dir)
             return {
-                "stdout": out,
+                "stdout": interleave_output(out, request.stdin or ""),
                 "stderr": err,
                 "exit_code": run_proc.returncode
             }
@@ -184,16 +229,18 @@ async def run_code(request: RunRequest):
         temp_path = f.name
 
     try:
-        proc = subprocess.Popen(cmd + [temp_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        proc = subprocess.Popen(cmd + [temp_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", env=env)
         try:
             out, err = proc.communicate(input=request.stdin or "", timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
             out, err = proc.communicate()
             err += "\n\nError: Execution timed out after 10 seconds."
-        
+
         return {
-            "stdout": out,
+            "stdout": interleave_output(out, request.stdin or ""),
             "stderr": err,
             "exit_code": proc.returncode
         }
@@ -216,6 +263,19 @@ async def evaluate_practice(request: RunRequest):
     if lang == "js": lang = "javascript"
     if lang == "c++": lang = "cpp"
     
+    # Detect obvious language mismatch (e.g. Python code but lang is Java)
+    is_python_looking = "input(" in code or "print(" in code or "def " in code
+    is_java_looking = "System.out.println" in code or "public class" in code
+    
+    if lang == "java" and is_python_looking and not is_java_looking:
+        return {
+            "status": "fail",
+            "message": "Engine Mismatch: You have 'Java' selected but your code looks like Python.",
+            "mistakes": ["Selected engine: Java", "Detected syntax: Python"],
+            "fixed_code": code,
+            "alternative": "Please switch the language dropdown to 'Python' to get accurate practice results."
+        }
+
     # 1. Run static analysis to detect syntax errors
     static_feedback = run_static_analysis(code, lang)
     mistakes = [f["message"] for f in static_feedback if f.get("type") in ("error", "warning")]

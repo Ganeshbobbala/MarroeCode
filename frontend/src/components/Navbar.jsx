@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Code2, Sparkles, LayoutDashboard, Plus, History } from 'lucide-react';
+import { Code2, Sparkles, Plus, History } from 'lucide-react';
 
 const Navbar = () => {
   return (
@@ -11,7 +11,7 @@ const Navbar = () => {
           <Code2 size={22} className="stroke-[2.5]" />
         </div>
         <h1 className="text-xl font-bold text-white flex gap-2 items-center tracking-tight">
-          MarrowCode
+          MarroeCode
           <Sparkles size={16} className="text-accent opacity-80" />
         </h1>
       </div>
@@ -19,7 +19,7 @@ const Navbar = () => {
       {/* Navigation center-right */}
       <nav className="flex items-center gap-4">
         <NavLink 
-          to="/practice" 
+          to="/" 
           className={({ isActive }) => 
             `flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-sm ${
               isActive ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'text-slate-500 hover:text-white'

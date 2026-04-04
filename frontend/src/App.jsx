@@ -1,7 +1,6 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
-import Dashboard from './pages/Dashboard';
 import NewReview from './pages/NewReview';
 import History from './pages/History';
 import Results from './pages/Results';
@@ -24,11 +23,10 @@ function App() {
         <div className="w-full max-w-7xl px-8 z-10 flex flex-col h-[calc(100vh-80px)]">
           <div className="flex-grow mt-10">
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<Practice />} />
               <Route path="/new" element={<NewReview />} />
               <Route path="/history" element={<History />} />
               <Route path="/results" element={<Results />} />
-              <Route path="/practice" element={<Practice />} />
             </Routes>
           </div>
         </div>

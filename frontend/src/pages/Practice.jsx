@@ -57,6 +57,12 @@ const Practice = () => {
   const [selectedConcept, setSelectedConcept] = useState(null);
   const [stdin, setStdin] = useState('');
 
+  const [files, setFiles] = useState([
+    { id: 1, name: 'Main.py', content: BOILERPLATES.python, language: 'python' }
+  ]);
+  const [activeFileId, setActiveFileId] = useState(1);
+  const activeFile = files.find(f => f.id === activeFileId) || files[0];
+
   useEffect(() => {
     axios.get(`${API_BASE}/practice/concepts`)
       .then(res => {
@@ -69,20 +75,76 @@ const Practice = () => {
   }, []);
 
   useEffect(() => {
-    if (!selectedConcept && concepts.length> 0) {
+    if (!selectedConcept && concepts.length > 0) {
       setSelectedConcept(concepts[0]);
     }
-  }, [concepts]); // Removed language from dependencies to prevent accidental logic resets
+  }, [concepts]);
+
+  useEffect(() => {
+    // Sync language state when active file changes
+    if (activeFile) {
+      setLanguage(activeFile.language);
+      setCode(activeFile.content);
+    }
+  }, [activeFileId]);
+
+  // Update file content when code changes in editor
+  const handleCodeChange = (newCode) => {
+    setCode(newCode);
+    setFiles(prev => prev.map(f => f.id === activeFileId ? { ...f, content: newCode } : f));
+  };
+
+  const [editingFileId, setEditingFileId] = useState(null);
+  const [tempFileName, setTempFileName] = useState("");
+
+  const startRenaming = (file) => {
+    setEditingFileId(file.id);
+    setTempFileName(file.name);
+  };
+
+  const finishRenaming = () => {
+    if (tempFileName.trim()) {
+      setFiles(prev => prev.map(f => f.id === editingFileId ? { ...f, name: tempFileName.trim() } : f));
+    }
+    setEditingFileId(null);
+  };
+
+  const addFile = () => {
+    const newId = Math.max(...files.map(f => f.id), 0) + 1;
+    const newFile = {
+      id: newId,
+      name: `Untitled_${newId}.${language === 'python' ? 'py' : language === 'java' ? 'java' : 'js'}`,
+      content: BOILERPLATES[language] || "",
+      language: language
+    };
+    setFiles([...files, newFile]);
+    setActiveFileId(newId);
+    // Auto-start renaming for new files
+    setTimeout(() => startRenaming(newFile), 100);
+  };
+
+  const deleteFile = (id) => {
+    if (files.length <= 1) return;
+    const newFiles = files.filter(f => f.id !== id);
+    setFiles(newFiles);
+    if (activeFileId === id) setActiveFileId(newFiles[0].id);
+  };
 
   const runCode = async () => {
     setIsSubmitting(true);
     setEvalResult(null);
     try {
-      const res = await axios.post(`${API_BASE}/run`, { code, language, stdin });
+      const res = await axios.post(`${API_BASE}/run`, { 
+        code: activeFile.content, 
+        language: activeFile.language, 
+        stdin 
+      });
       setOutput(res.data);
 
       const evalRes = await axios.post(`${API_BASE}/practice/evaluate`, {
-        code, language, mode, persona, stdin,
+        code: activeFile.content, 
+        language: activeFile.language, 
+        mode, persona, stdin,
         concept_id: selectedConcept?.id
       });
       setEvalResult(evalRes.data);
@@ -95,6 +157,72 @@ const Practice = () => {
 
   return (
     <div className="flex flex-row gap-4 h-[calc(100vh-140px)] min-h-[600px] animate-in fade-in duration-700">
+      {/* 1. LEFT: File Explorer */}
+      <div className="w-56 bg-surface/30 border border-white/5 rounded-2xl flex flex-col overflow-hidden backdrop-blur-md shrink-0 border-r border-indigo-500/10">
+        <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/20">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+            <Layers size={14} className="text-primary" /> Explorer
+          </div>
+          <button 
+            onClick={addFile}
+            className="p-1.5 hover:bg-white/10 rounded-lg text-primary transition-all hover:scale-110 active:scale-95"
+            title="Create New File"
+          >
+            <Zap size={14} fill="currentColor" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+          {files.map(file => (
+            <div 
+              key={file.id}
+              onClick={() => setActiveFileId(file.id)}
+              className={`group flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 border ${
+                activeFileId === file.id 
+                ? 'bg-primary/20 border-primary/30 text-white shadow-lg shadow-primary/5' 
+                : 'hover:bg-white/5 text-slate-400 border-transparent'
+              }`}
+            >
+              <div className="flex items-center gap-3 overflow-hidden flex-1">
+                <div className={`w-2 h-2 rounded-full shrink-0 shadow-sm ${
+                   file.language === 'python' ? 'bg-amber-400 shadow-amber-400/20' :
+                   file.language === 'java' ? 'bg-rose-400 shadow-rose-400/20' :
+                   'bg-blue-400 shadow-blue-400/20'
+                }`} />
+                
+                {editingFileId === file.id ? (
+                  <input 
+                    autoFocus
+                    value={tempFileName}
+                    onChange={e => setTempFileName(e.target.value)}
+                    onBlur={finishRenaming}
+                    onKeyDown={e => e.key === 'Enter' && finishRenaming()}
+                    className="bg-slate-900 border border-primary/30 outline-none text-[11px] font-bold text-white px-2 py-0.5 rounded w-full shadow-inner"
+                  />
+                ) : (
+                  <span className="text-[11px] font-medium truncate">{file.name}</span>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); startRenaming(file); }}
+                  className="hover:text-primary transition-colors p-1"
+                  title="Rename"
+                >
+                  <Lightbulb size={12} />
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); deleteFile(file.id); }}
+                  className="hover:text-rose-400 transition-colors p-1"
+                  title="Delete"
+                >
+                  <AlertCircle size={12} /> {/* Using AlertCircle as a temporary delete stand-in or just a clear X */}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
       {/* 2. MIDDLE: Editor & Code Control */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
 
@@ -156,7 +284,7 @@ const Practice = () => {
             language={language === 'cpp' ? 'cpp' : language}
             theme="vs-dark"
             value={code}
-            onChange={setCode}
+            onChange={handleCodeChange}
             options={{
               minimap: { enabled: false },
               fontSize: 14,
@@ -171,22 +299,43 @@ const Practice = () => {
 
         {/* Console / Stdin */}
         <div className="h-48 grid grid-cols-2 gap-4">
-          <div className="bg-black/40 border border-white/5 rounded-2xl flex flex-col backdrop-blur-sm">
-            <div className="p-3 border-b border-white/5 flex items-center gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-              <Terminal size={14} /> Input Stream
-            </div>
-            <textarea
-              className="flex-1 bg-transparent p-4 text-xs font-mono text-amber-200 outline-none resize-none placeholder-slate-700"
-              placeholder="Feed data to stdin..."
-              value={stdin}
-              onChange={e => setStdin(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  if (!isSubmitting) runCode();
+          <div className="bg-black/40 border border-white/5 rounded-2xl flex flex-col backdrop-blur-sm group/stdin">
+            <div className="p-3 border-b border-white/5 flex items-center gap-4 text-[11px] font-bold uppercase tracking-widest">
+              <div className="flex items-center gap-2 text-slate-500"><Terminal size={14} /> Input Stream</div>
+              
+              {/* Dynamic Prompt Detector - NOW ON THE LEFT */}
+              {(() => {
+                const promptMatch = code.match(/input\s*\(\s*["'](.*?)["']\s*\)/);
+                if (promptMatch && promptMatch[1]) {
+                  return (
+                    <div className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full text-indigo-400 animate-in zoom-in duration-300">
+                      <Target size={12} className="animate-pulse" />
+                      <span className="truncate max-w-[200px]">{promptMatch[1]}</span>
+                    </div>
+                  );
                 }
-              }}
-            />
+                return null;
+              })()}
+            </div>
+              {(() => {
+                const promptMatch = code.match(/input\s*\(\s*["'](.*?)["']\s*\)/);
+                const placeholderText = (promptMatch && promptMatch[1]) || "Feed data to stdin...";
+                
+                return (
+                  <textarea
+                    className="flex-1 bg-transparent p-4 text-xs font-mono text-amber-200 outline-none resize-none placeholder-slate-700"
+                    placeholder={placeholderText}
+                    value={stdin}
+                    onChange={e => setStdin(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!isSubmitting) runCode();
+                      }
+                    }}
+                  />
+                );
+              })()}
           </div>
           <div className="bg-black/60 border border-white/5 rounded-2xl flex flex-col backdrop-blur-sm">
             <div className="p-3 border-b border-white/5 flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">
