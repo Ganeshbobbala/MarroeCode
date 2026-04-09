@@ -40,7 +40,8 @@ const BOILERPLATES = {
   java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, Practice!");\n    }\n}`,
   python: `def main():\n    print("Hello, Practice!")\n\nif __name__ == "__main__":\n    main()`,
   javascript: `console.log("Hello, Practice!");`,
-  cpp: `#include <iostream>\nusing namespace std;\nint main() {\n    cout << "Hello, Practice!" << endl;\n    return 0;\n}`
+  cpp: `#include <iostream>\nusing namespace std;\nint main() {\n    cout << "Hello, Practice!" << endl;\n    return 0;\n}`,
+  c: `#include <stdio.h>\nint main() {\n    printf("Hello, Practice!\\n");\n    return 0;\n}`
 };
 
 const Practice = () => {
@@ -111,9 +112,11 @@ const Practice = () => {
 
   const addFile = () => {
     const newId = Math.max(...files.map(f => f.id), 0) + 1;
+    const extensions = { python: 'py', java: 'java', javascript: 'js', cpp: 'cpp', c: 'c' };
+    const ext = extensions[language] || 'txt';
     const newFile = {
       id: newId,
-      name: `Untitled_${newId}.${language === 'python' ? 'py' : language === 'java' ? 'java' : 'js'}`,
+      name: `Untitled_${newId}.${ext}`,
       content: BOILERPLATES[language] || "",
       language: language
     };
@@ -134,16 +137,16 @@ const Practice = () => {
     setIsSubmitting(true);
     setEvalResult(null);
     try {
-      const res = await axios.post(`${API_BASE}/run`, { 
-        code: activeFile.content, 
-        language: activeFile.language, 
-        stdin 
+      const res = await axios.post(`${API_BASE}/run`, {
+        code: activeFile.content,
+        language: activeFile.language.toLowerCase(),
+        stdin
       });
       setOutput(res.data);
 
       const evalRes = await axios.post(`${API_BASE}/practice/evaluate`, {
-        code: activeFile.content, 
-        language: activeFile.language, 
+        code: activeFile.content,
+        language: activeFile.language.toLowerCase(),
         mode, persona, stdin,
         concept_id: selectedConcept?.id
       });
@@ -163,7 +166,7 @@ const Practice = () => {
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
             <Layers size={14} className="text-primary" /> Explorer
           </div>
-          <button 
+          <button
             onClick={addFile}
             className="p-1.5 hover:bg-white/10 rounded-lg text-primary transition-all hover:scale-110 active:scale-95"
             title="Create New File"
@@ -173,24 +176,22 @@ const Practice = () => {
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
           {files.map(file => (
-            <div 
+            <div
               key={file.id}
               onClick={() => setActiveFileId(file.id)}
-              className={`group flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 border ${
-                activeFileId === file.id 
-                ? 'bg-primary/20 border-primary/30 text-white shadow-lg shadow-primary/5' 
-                : 'hover:bg-white/5 text-slate-400 border-transparent'
-              }`}
+              className={`group flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 border ${activeFileId === file.id
+                  ? 'bg-primary/20 border-primary/30 text-white shadow-lg shadow-primary/5'
+                  : 'hover:bg-white/5 text-slate-400 border-transparent'
+                }`}
             >
               <div className="flex items-center gap-3 overflow-hidden flex-1">
-                <div className={`w-2 h-2 rounded-full shrink-0 shadow-sm ${
-                   file.language === 'python' ? 'bg-amber-400 shadow-amber-400/20' :
-                   file.language === 'java' ? 'bg-rose-400 shadow-rose-400/20' :
-                   'bg-blue-400 shadow-blue-400/20'
-                }`} />
-                
+                <div className={`w-2 h-2 rounded-full shrink-0 shadow-sm ${file.language === 'python' ? 'bg-amber-400 shadow-amber-400/20' :
+                    file.language === 'java' ? 'bg-rose-400 shadow-rose-400/20' :
+                      'bg-blue-400 shadow-blue-400/20'
+                  }`} />
+
                 {editingFileId === file.id ? (
-                  <input 
+                  <input
                     autoFocus
                     value={tempFileName}
                     onChange={e => setTempFileName(e.target.value)}
@@ -202,16 +203,16 @@ const Practice = () => {
                   <span className="text-[11px] font-medium truncate">{file.name}</span>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); startRenaming(file); }}
                   className="hover:text-primary transition-colors p-1"
                   title="Rename"
                 >
                   <Lightbulb size={12} />
                 </button>
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); deleteFile(file.id); }}
                   className="hover:text-rose-400 transition-colors p-1"
                   title="Delete"
@@ -240,6 +241,7 @@ const Practice = () => {
                 <option value="java" className="bg-slate-900 text-white">Java</option>
                 <option value="javascript" className="bg-slate-900 text-white">JS</option>
                 <option value="cpp" className="bg-slate-900 text-white">C++</option>
+                <option value="c" className="bg-slate-900 text-white">C</option>
               </select>
             </div>
 
@@ -253,6 +255,7 @@ const Practice = () => {
                 <option value="standard" className="bg-slate-900 text-white">Standard AI</option>
                 <option value="linus" className="bg-slate-900 text-white">Linus Mode</option>
                 <option value="zen" className="bg-slate-900 text-white">Zen Master</option>
+                <option value="startup" className="bg-slate-900 text-white">Startup Bro</option>
               </select>
             </div>
           </div>
@@ -298,11 +301,11 @@ const Practice = () => {
         </div>
 
         {/* Console / Stdin */}
-        <div className="h-48 grid grid-cols-2 gap-4">
+        <div className="h-64 grid grid-cols-[1fr_2fr] gap-4">
           <div className="bg-black/40 border border-white/5 rounded-2xl flex flex-col backdrop-blur-sm group/stdin">
             <div className="p-3 border-b border-white/5 flex items-center gap-4 text-[11px] font-bold uppercase tracking-widest">
               <div className="flex items-center gap-2 text-slate-500"><Terminal size={14} /> Input Stream</div>
-              
+
               {/* Dynamic Prompt Detector - NOW ON THE LEFT */}
               {(() => {
                 const promptMatch = code.match(/input\s*\(\s*["'](.*?)["']\s*\)/);
@@ -317,25 +320,25 @@ const Practice = () => {
                 return null;
               })()}
             </div>
-              {(() => {
-                const promptMatch = code.match(/input\s*\(\s*["'](.*?)["']\s*\)/);
-                const placeholderText = (promptMatch && promptMatch[1]) || "Feed data to stdin...";
-                
-                return (
-                  <textarea
-                    className="flex-1 bg-transparent p-4 text-xs font-mono text-amber-200 outline-none resize-none placeholder-slate-700"
-                    placeholder={placeholderText}
-                    value={stdin}
-                    onChange={e => setStdin(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        if (!isSubmitting) runCode();
-                      }
-                    }}
-                  />
-                );
-              })()}
+            {(() => {
+              const promptMatch = code.match(/input\s*\(\s*["'](.*?)["']\s*\)/);
+              const placeholderText = (promptMatch && promptMatch[1]) || "Feed data to stdin...";
+
+              return (
+                <textarea
+                  className="flex-1 bg-transparent p-4 text-xs font-mono text-amber-200 outline-none resize-none placeholder-slate-700"
+                  placeholder={placeholderText}
+                  value={stdin}
+                  onChange={e => setStdin(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!isSubmitting) runCode();
+                    }
+                  }}
+                />
+              );
+            })()}
           </div>
           <div className="bg-black/60 border border-white/5 rounded-2xl flex flex-col backdrop-blur-sm">
             <div className="p-3 border-b border-white/5 flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">
@@ -357,13 +360,13 @@ const Practice = () => {
       </div>
 
       {/* 3. RIGHT: Mentor & Analysis */}
-      <div className="w-[30%] flex flex-col gap-4 min-w-[320px]">
+      <div className="w-80 flex flex-col gap-4 shrink-0">
         {/* Active Goal */}
         {!code.trim() ? (
           <div className="bg-slate-900/30 border border-white/5 rounded-2xl p-8 flex flex-col items-center justify-center text-center opacity-60">
             <Code2 size={40} className="text-slate-700 mb-4" />
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-              Sandbox Active<br/>
+              Sandbox Active<br />
               <span className="text-[10px] font-normal lowercase tracking-normal">Write any logic. The AI will identify your mission and provide deep insights.</span>
             </p>
           </div>
@@ -379,11 +382,11 @@ const Practice = () => {
               </h3>
             </div>
             <p className="text-sm text-slate-300 leading-relaxed font-bold">
-              {code.toLowerCase().includes('even') || code.toLowerCase().includes('% 2') 
+              {code.toLowerCase().includes('even') || code.toLowerCase().includes('% 2')
                 ? "Goal: Mastering Even/Odd Logic & Numerical Parity."
                 : code.toLowerCase().includes('age')
-                ? "Goal: Mastering Age-Based Eligibility & Conditionals."
-                : "Goal: Perfecting Custom Logic Architecture."
+                  ? "Goal: Mastering Age-Based Eligibility & Conditionals."
+                  : "Goal: Perfecting Custom Logic Architecture."
               }
             </p>
             <p className="text-[11px] text-slate-400 mt-2 leading-tight">
@@ -418,9 +421,48 @@ const Practice = () => {
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
 
                 {/* Status Message */}
-                <div className={`p-4 rounded-xl border mb-6 ${evalResult.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100' : 'bg-rose-500/5 border-rose-500/20 text-rose-100'}`}>
-                  <p className="leading-relaxed">{evalResult.message}</p>
+                <div className={`p-4 rounded-xl border mb-4 ${evalResult.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100' : 'bg-rose-500/5 border-rose-500/20 text-rose-100'}`}>
+                  <p className="leading-relaxed font-medium">{evalResult.message}</p>
                 </div>
+
+                {/* Specific Mistakes */}
+                {evalResult.mistakes && evalResult.mistakes.length > 0 && (
+                  <div className="mb-6 animate-in slide-in-from-left-4 duration-300">
+                    <div className="flex items-center gap-2 mb-3 text-rose-400 font-bold uppercase text-[10px] tracking-widest px-1">
+                      <AlertCircle size={14} /> Identified Issues
+                    </div>
+                    <div className="space-y-2">
+                      {evalResult.mistakes.map((mistake, i) => (
+                        <div key={i} className="flex gap-3 bg-rose-500/5 border border-rose-500/10 p-3 rounded-lg group hover:border-rose-500/30 transition-all">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
+                          <p className="text-slate-300 text-xs leading-relaxed">{mistake}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Corrected Code Recommendation */}
+                {evalResult.fixed_code && evalResult.fixed_code !== code && evalResult.fixed_code !== "HIDDEN. Socratic mode prevents revealing the full refactored code." && (
+                  <div className="mb-8 border border-white/5 rounded-xl overflow-hidden bg-slate-900/40 group">
+                    <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
+                      <div className="flex items-center gap-2 text-primary font-bold uppercase text-[10px] tracking-widest">
+                        <Check size={14} /> Corrected Logic
+                      </div>
+                      <button
+                        onClick={() => handleCodeChange(evalResult.fixed_code)}
+                        className="text-[10px] bg-primary/20 hover:bg-primary/40 text-primary px-3 py-1 rounded-full font-black transition-all hover:scale-105 active:scale-95"
+                      >
+                        APPLY FIX
+                      </button>
+                    </div>
+                    <div className="p-4 max-h-80 overflow-y-auto custom-scrollbar">
+                      <pre className="text-[11px] font-mono text-slate-400 leading-tight">
+                        {evalResult.fixed_code}
+                      </pre>
+                    </div>
+                  </div>
+                )}
 
                 {/* Diagram */}
                 {evalResult.explanations?.diagram && (
@@ -434,27 +476,23 @@ const Practice = () => {
 
                 {/* Theory & Real World - Explained after submission */}
                 <div className="space-y-6 pt-4 border-t border-white/5">
-                  {selectedConcept?.theory && (
-                    <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2 text-indigo-300 font-bold uppercase text-[10px] tracking-widest">
-                        <BookOpen size={14} /> Core Theory
-                      </div>
-                      <p className="text-slate-300 leading-relaxed text-xs">
-                        {selectedConcept.theory}
-                      </p>
+                  <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-4 transition-all hover:bg-indigo-500/10">
+                    <div className="flex items-center gap-2 mb-2 text-indigo-300 font-bold uppercase text-[10px] tracking-widest">
+                      <BookOpen size={14} /> Core Theory
                     </div>
-                  )}
+                    <p className="text-slate-300 leading-relaxed text-xs">
+                      {evalResult?.explanations?.logic_simplification || selectedConcept?.theory || "Wait for AI analysis for deep insights."}
+                    </p>
+                  </div>
 
-                  {selectedConcept?.real_world && (
-                    <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2 text-amber-300 font-bold uppercase text-[10px] tracking-widest">
-                        <Briefcase size={14} /> Real-World Application
-                      </div>
-                      <p className="text-slate-300 leading-relaxed text-xs">
-                        {selectedConcept.real_world}
-                      </p>
+                  <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4 transition-all hover:bg-amber-500/10">
+                    <div className="flex items-center gap-2 mb-2 text-amber-300 font-bold uppercase text-[10px] tracking-widest">
+                      <Briefcase size={14} /> Real-World Application
                     </div>
-                  )}
+                    <p className="text-slate-300 leading-relaxed text-xs">
+                      {evalResult?.explanations?.real_world_use_case || selectedConcept?.real_world || "Analyzing potential real-world applications for your code snippet..."}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Alternative */}
