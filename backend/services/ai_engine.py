@@ -216,30 +216,39 @@ def analyze_code_with_ai(code: str, language: str) -> dict:
     }
 
     # Populating explanations based on code features
+    # ─── Pattern-based Real World Use Cases (Dynamic) ───────────────────────────
+    rw_use_case = "Used for solving specific computational problems or business logic requirements."
+    logic_desc = f"Standard execution in {language.upper()} using functional or imperative styles."
+
+    code_lower = code.lower()
+    if "fib" in code_lower or "fact" in code_lower or ("n-1" in code_lower and "(" in code_lower):
+        rw_use_case = "Mathematical algorithms like this are critical for calculating growth rates, financial projections, and exploring tree-like data structures."
+        logic_desc = "This implementation uses recursive or iterative logic to solve a sequence-based mathematical problem."
+    elif "sort" in code_lower or "swap" in code_lower or (">" in code_lower and "temp =" in code_lower):
+        rw_use_case = "Sorting and organizing data is the foundation of database indexing, search engine ranking, and inventory management systems."
+        logic_desc = "Your code implements a data-ordering algorithm, focusing on memory efficiency and element positioning."
+    elif "age" in code_lower or "eligible" in code_lower or "18" in code_lower:
+        rw_use_case = "Commonly used in eligibility checks, access control systems, and form-validation engines where binary decisions are needed."
+        logic_desc = "The logic handles a conditional accessibility check based on thresholds (like age or permissions)."
+    elif "?" in code_lower and ":" in code_lower:
+        rw_use_case = "Ternary operators are used for compact UI rendering logic and simple data transformations in modern web dashboards."
+        logic_desc = "The implementation uses a concise ternary expression to handle binary branching logic efficiently."
+
+    explanations["real_world_use_case"] = rw_use_case
+    explanations["logic_simplification"] = logic_desc
+    explanations["theoretical_concepts"] = ["Control Flow", "Algorithmic Complexity", "Memory Management"]
+
+    # ─── Language-specific refinements ──────────────────────────────────────────
     if language.lower() == "python":
         explanations["line_by_line"] = [f"Line {i+1}: {l.strip()}" for i, l in enumerate(code.split('\n')) if l.strip()]
-        explanations["logic_simplification"] = "This script executes top-down, defining variables or logic branches."
         if nested:
-            explanations["logic_simplification"] += " The nested loops cause the complexity to grow quadratically with the input size."
-        explanations["real_world_use_case"] = "Processing a sequence of items, like calculating transactions for a customer list."
-        explanations["theoretical_concepts"] = ["Control Flow", "Static vs Dynamic Typing", "DRY Principle"]
+            explanations["logic_simplification"] += " The nested loops cause the complexity to grow quadratically."
     elif language.lower() == "javascript":
         explanations["line_by_line"] = [f"Line {i+1}: {l.strip()}" for i, l in enumerate(code.split('\n')) if l.strip()]
-        explanations["logic_simplification"] = "Standard ECMAScript execution using functional or imperative style."
-        explanations["real_world_use_case"] = "Web application interactivity, such as form validation or UI updates."
-        explanations["theoretical_concepts"] = ["Closure", "Event Loop", "Prototypes"]
     elif language.lower() in ("java", "cpp", "c++"):
         explanations["line_by_line"] = [f"Step {i+1}: {l.strip()}" for i, l in enumerate(code.split('\n')) if l.strip()]
-        explanations["logic_simplification"] = f"This is a strictly-typed {language.upper()} implementation that uses a structured execution flow."
-        if "?" in code:
-            explanations["logic_simplification"] += " It specifically uses a Ternary Operator (? :) for compact conditional logic."
-        explanations["real_world_use_case"] = "Commonly used in eligibility checks, access control systems, or form-validation engines where binary decisions are needed."
-        explanations["theoretical_concepts"] = ["Object-Oriented Design", "Static Typing", "Conditional logic pathways"]
     else:
         explanations["line_by_line"] = ["Analyzing lines for structure and syntax."]
-        explanations["logic_simplification"] = "General algorithmic flow."
-        explanations["real_world_use_case"] = "Used for solving specific computational problems or business logic requirements."
-        explanations["theoretical_concepts"] = ["Memory Management", "Algorithms"]
 
     # ─── Diagram Generation ──────────────────────────────────────────────────
     # Improved: Detect specific patterns like Ternary operators and Voting logic

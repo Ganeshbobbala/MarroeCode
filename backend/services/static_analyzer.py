@@ -81,23 +81,23 @@ def run_static_analysis(code: str, language: str) -> list:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
 
-    elif language.lower() == "javascript":
-        # Basic JS heuristics
+    elif language.lower() in ["c", "cpp", "c++"]:
+        # Basic C/C++ heuristics
         lines = code.split('\n')
         for i, line in enumerate(lines, start=1):
             stripped = line.strip()
-            if not stripped or stripped.startswith('//'):
+            if not stripped or stripped.startswith('//') or stripped.startswith('/*') or stripped.endswith('*/'):
                 continue
-            # Check for missing semicolons on expression statements
-            if (stripped and
-                not stripped.endswith((';', '{', '}', '(', ',', '*/'))
-                and not stripped.startswith(('//', '/*', '*'))
-                and not any(kw in stripped for kw in ['if ', 'else', 'for ', 'while ', 'function ', 'class ', '=>'])):
+            # Check for missing semicolons on statements
+            if (not stripped.endswith((';', '{', '}', '#', ':', ','))
+                and not any(kw in stripped for kw in ['if', 'else', 'for', 'while', 'switch', 'case', 'default'])):
                 feedback.append({
                     "line": i,
                     "type": "warning",
-                    "message": f"Possible missing semicolon on line {i}.",
-                    "suggestion": "Add a semicolon at the end of the statement."
+                    "message": f"Possible missing semicolon in {language.upper()} on line {i}.",
+                    "suggestion": "Most statements in C/C++ must end with a semicolon."
                 })
+
+
 
     return feedback

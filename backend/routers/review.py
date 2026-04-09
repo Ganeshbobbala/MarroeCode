@@ -183,20 +183,22 @@ async def run_code(request: RunRequest):
             raise HTTPException(status_code=500, detail=f"Java execution failed: {str(e)}")
             
         return {} # Should not reach here
-    elif lang == "c++" or lang == "cpp":
-        if not shutil.which("g++"):
-            raise HTTPException(status_code=500, detail="C++ compiler (g++) is not installed.")
+    elif lang == "c++" or lang == "cpp" or lang == "c":
+        compiler = "g++" if "++" in lang or "cpp" in lang else "gcc"
+        if not shutil.which(compiler):
+            raise HTTPException(status_code=500, detail=f"{compiler} is not installed.")
         
         temp_dir = tempfile.mkdtemp()
-        cpp_file = os.path.join(temp_dir, "main.cpp")
+        ext = ".cpp" if "++" in lang or "cpp" in lang else ".c"
+        source_file = os.path.join(temp_dir, f"main{ext}")
         exe_file = os.path.join(temp_dir, "main.exe" if os.name == 'nt' else "main")
         
-        with open(cpp_file, "w", encoding="utf-8") as f:
+        with open(source_file, "w", encoding="utf-8") as f:
             f.write(code)
             
         try:
             # Compile
-            compile_proc = subprocess.run(["g++", cpp_file, "-o", exe_file], capture_output=True, text=True, encoding="utf-8")
+            compile_proc = subprocess.run([compiler, source_file, "-o", exe_file], capture_output=True, text=True, encoding="utf-8")
             if compile_proc.returncode != 0:
                 shutil.rmtree(temp_dir)
                 return {"stdout": "", "stderr": f"Compilation Error:\n{compile_proc.stderr}", "exit_code": compile_proc.returncode}
@@ -220,7 +222,8 @@ async def run_code(request: RunRequest):
             }
         except Exception as e:
             shutil.rmtree(temp_dir, ignore_errors=True)
-            raise HTTPException(status_code=500, detail=f"C++ execution failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"{lang.upper()} execution failed: {str(e)}")
+
     else:
         raise HTTPException(status_code=400, detail=f"Execution for language {lang} is not supported yet.")
 

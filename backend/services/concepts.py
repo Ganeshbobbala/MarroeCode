@@ -2,17 +2,17 @@
 PRACTICE_CONCEPTS = [
     {
         "id": "ternary",
-        "name": "Age Eligibility Checker",
+        "name": "Logic Architecture",
         "difficulty": "Beginner",
-        "description": "Mastering logical flow for age-based restrictions.",
-        "theory": "The ternary operator is the most efficient way to handle 'pass/fail' age checks. It evaluates a condition (age >= 18) and immediately returns one of two strings without the need for verbose if-else blocks.",
-        "real_world": "Used in almost every website with age restrictions: liquor stores, voting registration, social media sign-ups, and insurance premium calculators.",
-        "goal": "Write a one-liner to check if a person is eligible (age >= 18). Print 'Eligible' if true, otherwise print 'Minor'. Input 'age' is provided via stdin.",
+        "description": "Mastering logical flow and conditional branching.",
+        "theory": "Effective conditional logic is the backbone of all software. Utilizing patterns like the Ternary Operator allows for clean, readable, and branching execution paths that handle complex decision-making with minimal boilerplate.",
+        "real_world": "From routing internet traffic and authenticating users to game-state transitions and dynamic UI rendering—every modern system relies on robust logic architectures to ensure safe and predictable behavior.",
+        "goal": "Write a clean conditional logic block or ternary expression to evaluate a state. Input is provided via stdin.",
         "boilerplates": {
-            "java": "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Check age >= 18 using (condition ? \"Eligible\" : \"Minor\")\n    }\n}",
-            "python": "import sys\n# Read age from stdin and use a ternary expression to print \"Eligible\" or \"Minor\"\n# print(\"Eligible\" if age >= 18 else \"Minor\")",
-            "javascript": "// Assume a variable 'age' exists. Use a ternary to log \"Eligible\" or \"Minor\"\nconst age = 20;\n",
-            "cpp": "#include <iostream>\nusing namespace std;\nint main() {\n    int age;\n    // Read age and use (age >= 18 ? \"Eligible\" : \"Minor\")\n    return 0;\n}"
+            "java": "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Implement logic here\n    }\n}",
+            "python": "import sys\n# Implement your logic architecture here\n# Input provided via sys.stdin.read()",
+            "javascript": "// Implement professional logic flow\nconst input = 10;\n",
+            "cpp": "#include <iostream>\nusing namespace std;\nint main() {\n    // Implement logic architecture\n    return 0;\n}"
         }
     },
     {
