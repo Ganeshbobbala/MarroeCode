@@ -427,10 +427,12 @@ const Practice = () => {
             </span>
           </div>
           <Editor
+            height="100%"
             language={language === 'cpp' ? 'cpp' : language}
             theme="vs-dark"
             value={code}
             onChange={handleCodeChange}
+            loading={<div className="flex items-center justify-center h-full text-indigo-400 animate-pulse font-bold tracking-widest text-xs">INITIALIZING ENGINE...</div>}
             options={{
               minimap: { enabled: false },
               fontSize: 14,
@@ -439,6 +441,12 @@ const Practice = () => {
               lineNumbers: 'on',
               roundedSelection: true,
               scrollBeyondLastLine: false,
+              automaticLayout: true,
+              wordWrap: 'on',
+              scrollbar: {
+                vertical: 'visible',
+                horizontal: 'visible'
+              }
             }}
           />
         </div>
