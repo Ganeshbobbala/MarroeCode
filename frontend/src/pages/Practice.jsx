@@ -158,7 +158,7 @@ const Practice = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-80px)] min-h-[800px] animate-in fade-in duration-700 pb-10 lg:pb-0">
+    <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-120px)] animate-in fade-in duration-700 pb-10 lg:pb-0 overflow-visible lg:overflow-hidden">
       
       {/* 1. LEFT SIDEBAR: Explorer + Mentor */}
       <div className="w-full lg:w-72 flex flex-col gap-4 shrink-0 h-auto lg:h-full">
@@ -237,7 +237,7 @@ const Practice = () => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar text-[12px]">
+            <div className="flex-1 overflow-y-auto p-3 space-y-5 custom-scrollbar text-[12px] scroll-smooth">
               {/* Mission Header */}
               <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-3 backdrop-blur-sm relative overflow-hidden group animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -444,7 +444,7 @@ const Practice = () => {
         </div>
 
         {/* Console / Stdin */}
-        <div className="h-auto lg:h-64 grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-4">
+        <div className="h-auto lg:h-72 grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-4 mb-4 lg:mb-0">
           <div className="bg-black/40 border border-white/5 rounded-2xl flex flex-col backdrop-blur-sm group/stdin">
             <div className="p-3 border-b border-white/5 flex items-center gap-4 text-[11px] font-bold uppercase tracking-widest">
               <div className="flex items-center gap-2 text-slate-500"><Terminal size={14} /> Input Stream</div>
@@ -503,10 +503,12 @@ const Practice = () => {
       </div>
 
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.2); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.3); }
+        .custom-scrollbar { scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+        * { scroll-behavior: smooth; }
       `}</style>
     </div>
   );

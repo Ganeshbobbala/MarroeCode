@@ -19,11 +19,6 @@ const Navbar = () => {
 
       {/* Navigation center-right */}
       <nav className="flex items-center gap-6">
-        <div className="hidden md:flex flex-col items-end">
-          <span className="text-[10px] uppercase font-black text-slate-500 tracking-tighter">Developed By</span>
-          <span className="text-xs font-bold text-white hover:text-primary transition-colors cursor-pointer">Ganesh Bobbala</span>
-        </div>
-        
         <NavLink 
           to="/" 
           className={({ isActive }) => 
