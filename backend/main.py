@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers import review
 
 app = FastAPI(
-    title="AI Code Reviewer API",
+    title="MarroeCode API",
     description="A full-stack AI-powered application that performs static analysis and ML-based code reviews.",
     version="1.0.0"
 )

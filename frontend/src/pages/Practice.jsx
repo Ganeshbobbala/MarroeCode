@@ -34,7 +34,7 @@ const Mermaid = ({ chart }) => {
   return <div ref={ref} className="flex justify-center p-4 bg-slate-900/80 rounded-xl border border-indigo-500/20 overflow-x-auto my-4 transition-all hover:border-indigo-500/40" />;
 };
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASEURL || 'http://localhost:8000/api';
 
 const BOILERPLATES = {
   java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, Practice!");\n    }\n}`,
@@ -46,14 +46,13 @@ const BOILERPLATES = {
 
 const Practice = () => {
   const [language, setLanguage] = useState('python');
-  const [mode, setMode] = useState('standard');
+  const [mode] = useState('standard');
   const [persona, setPersona] = useState('standard');
   const [code, setCode] = useState("");
   const [output, setOutput] = useState(null);
   const [evalResult, setEvalResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [complexity, setComplexity] = useState('O(1)');
-  const [carbon, setCarbon] = useState('0.01g CO₂');
+  const [complexity] = useState('O(1)');
   const [concepts, setConcepts] = useState([]);
   const [selectedConcept, setSelectedConcept] = useState(null);
   const [stdin, setStdin] = useState('');
@@ -73,13 +72,13 @@ const Practice = () => {
         }
       })
       .catch(err => console.error("Concepts fetch failed", err));
-  }, []);
+  }, [selectedConcept]);
 
   useEffect(() => {
     if (!selectedConcept && concepts.length > 0) {
       setSelectedConcept(concepts[0]);
     }
-  }, [concepts]);
+  }, [concepts, selectedConcept]);
 
   useEffect(() => {
     // Sync language state when active file changes
@@ -87,7 +86,7 @@ const Practice = () => {
       setLanguage(activeFile.language);
       setCode(activeFile.content);
     }
-  }, [activeFileId]);
+  }, [activeFileId, activeFile]);
 
   // Update file content when code changes in editor
   const handleCodeChange = (newCode) => {
@@ -159,74 +158,218 @@ const Practice = () => {
   };
 
   return (
-    <div className="flex flex-row gap-4 h-[calc(100vh-140px)] min-h-[600px] animate-in fade-in duration-700">
-      {/* 1. LEFT: File Explorer */}
-      <div className="w-56 bg-surface/30 border border-white/5 rounded-2xl flex flex-col overflow-hidden backdrop-blur-md shrink-0 border-r border-indigo-500/10">
-        <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/20">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-            <Layers size={14} className="text-primary" /> Explorer
-          </div>
-          <button
-            onClick={addFile}
-            className="p-1.5 hover:bg-white/10 rounded-lg text-primary transition-all hover:scale-110 active:scale-95"
-            title="Create New File"
-          >
-            <Zap size={14} fill="currentColor" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-          {files.map(file => (
-            <div
-              key={file.id}
-              onClick={() => setActiveFileId(file.id)}
-              className={`group flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 border ${activeFileId === file.id
-                  ? 'bg-primary/20 border-primary/30 text-white shadow-lg shadow-primary/5'
-                  : 'hover:bg-white/5 text-slate-400 border-transparent'
-                }`}
+    <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-80px)] min-h-[800px] animate-in fade-in duration-700 pb-10 lg:pb-0">
+      
+      {/* 1. LEFT SIDEBAR: Explorer + Mentor */}
+      <div className="w-full lg:w-72 flex flex-col gap-4 shrink-0 h-auto lg:h-full">
+        
+        {/* Explorer */}
+        <div className="h-[280px] bg-surface/30 border border-white/5 rounded-2xl flex flex-col overflow-hidden backdrop-blur-md border-r border-indigo-500/10">
+          <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/20">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <Layers size={14} className="text-primary" /> Explorer
+            </div>
+            <button
+              onClick={addFile}
+              className="p-1.5 hover:bg-white/10 rounded-lg text-primary transition-all hover:scale-110 active:scale-95"
+              title="Create New File"
             >
-              <div className="flex items-center gap-3 overflow-hidden flex-1">
-                <div className={`w-2 h-2 rounded-full shrink-0 shadow-sm ${file.language === 'python' ? 'bg-amber-400 shadow-amber-400/20' :
-                    file.language === 'java' ? 'bg-rose-400 shadow-rose-400/20' :
-                      'bg-blue-400 shadow-blue-400/20'
-                  }`} />
+              <Zap size={14} fill="currentColor" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 custom-scrollbar">
+            {files.map(file => (
+              <div
+                key={file.id}
+                onClick={() => setActiveFileId(file.id)}
+                className={`group flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition-all border ${activeFileId === file.id
+                    ? 'bg-primary/20 border-primary/30 text-white shadow-lg'
+                    : 'hover:bg-white/5 text-slate-400 border-transparent'
+                  }`}
+              >
+                <div className="flex items-center gap-3 overflow-hidden flex-1">
+                  <div className={`w-2 h-2 rounded-full shrink-0 shadow-sm ${file.language === 'python' ? 'bg-amber-400 shadow-amber-400/20' :
+                      file.language === 'java' ? 'bg-rose-400 shadow-rose-400/20' :
+                        'bg-blue-400 shadow-blue-400/20'
+                    }`} />
 
-                {editingFileId === file.id ? (
-                  <input
-                    autoFocus
-                    value={tempFileName}
-                    onChange={e => setTempFileName(e.target.value)}
-                    onBlur={finishRenaming}
-                    onKeyDown={e => e.key === 'Enter' && finishRenaming()}
-                    className="bg-slate-900 border border-primary/30 outline-none text-[11px] font-bold text-white px-2 py-0.5 rounded w-full shadow-inner"
-                  />
-                ) : (
-                  <span className="text-[11px] font-medium truncate">{file.name}</span>
-                )}
+                  {editingFileId === file.id ? (
+                    <input
+                      autoFocus
+                      value={tempFileName}
+                      onChange={e => setTempFileName(e.target.value)}
+                      onBlur={finishRenaming}
+                      onKeyDown={e => e.key === 'Enter' && finishRenaming()}
+                      className="bg-slate-900 border border-primary/30 outline-none text-[11px] font-bold text-white px-2 py-0.5 rounded w-full shadow-inner"
+                    />
+                  ) : (
+                    <span className="text-[11px] font-medium truncate">{file.name}</span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); startRenaming(file); }}
+                    className="hover:text-primary transition-colors p-1"
+                    title="Rename"
+                  >
+                    <Lightbulb size={12} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteFile(file.id); }}
+                    className="hover:text-rose-400 transition-colors p-1"
+                    title="Delete"
+                  >
+                    <AlertCircle size={12} />
+                  </button>
+                </div>
               </div>
+            ))}
+          </div>
+        </div>
 
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={(e) => { e.stopPropagation(); startRenaming(file); }}
-                  className="hover:text-primary transition-colors p-1"
-                  title="Rename"
-                >
-                  <Lightbulb size={12} />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteFile(file.id); }}
-                  className="hover:text-rose-400 transition-colors p-1"
-                  title="Delete"
-                >
-                  <AlertCircle size={12} /> {/* Using AlertCircle as a temporary delete stand-in or just a clear X */}
-                </button>
+          {/* Mentor Results */}
+          <div className="flex-1 bg-surface/40 border border-white/5 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm min-h-0">
+            <div className="p-3 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={16} className="text-emerald-500" />
+                <span className="text-xs font-bold text-white tracking-tight">AI Insights</span>
               </div>
             </div>
-          ))}
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar text-[12px]">
+              {/* Mission Header */}
+              <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-3 backdrop-blur-sm relative overflow-hidden group animate-in fade-in slide-in-from-top-4 duration-500">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <Sparkles size={32} />
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles size={14} className="text-indigo-400" />
+                  <h3 className="text-[10px] font-black uppercase tracking-wider text-white">
+                    Universal Logic Mission
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed font-bold">
+                  Goal: {code.toLowerCase().includes('even') ? "Mastering Even/Odd Logic." : 
+                        code.toLowerCase().includes('age') ? "Mastering Eligibility Gates." : 
+                        "Perfecting Custom Logic Architecture."}
+                </p>
+                <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+                  The AI is currently analyzing your specific snippet for theoretical depth and real-world application.
+                </p>
+              </div>
+
+              {!evalResult && !isSubmitting && (
+                <div className="h-full flex flex-col items-center justify-center text-center p-4 gap-3 opacity-30">
+                  <HelpCircle size={30} className="text-indigo-500" />
+                  <p className="text-slate-500 text-[10px]">Submit code to unlock mentor analytics.</p>
+                </div>
+              )}
+
+              {evalResult && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
+                  {/* Status Banner */}
+                  <div className={`p-3 rounded-xl border flex items-center justify-between ${evalResult.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100' : 'bg-rose-500/5 border-rose-500/20 text-rose-100'}`}>
+                    <p className="leading-relaxed font-semibold text-[11px]">{evalResult.message}</p>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${evalResult.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                      {evalResult.status}
+                    </span>
+                  </div>
+
+                  {/* Real-World Application */}
+                  {evalResult.explanations?.real_world_use_case && (
+                    <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-2xl relative overflow-hidden group">
+                      <div className="flex items-center gap-2 mb-2 text-amber-400 font-bold uppercase text-[9px] tracking-widest">
+                        <Briefcase size={12} /> Real-World Application
+                      </div>
+                      <p className="text-slate-300 text-[11px] leading-relaxed italic">{evalResult.explanations.real_world_use_case}</p>
+                    </div>
+                  )}
+
+                  {/* Alternative Methodology */}
+                  {evalResult.alternative && (
+                    <div className="bg-indigo-500/5 border border-indigo-500/10 p-3 rounded-2xl relative overflow-hidden group">
+                      <div className="flex items-center gap-2 mb-2 text-indigo-300 font-bold uppercase text-[9px] tracking-widest">
+                        <Lightbulb size={12} /> Alternative Methodology
+                      </div>
+                      <p className="text-slate-400 text-[11px] leading-relaxed">{evalResult.alternative}</p>
+                    </div>
+                  )}
+
+                  {/* Mistakes/Issues */}
+                  {evalResult.mistakes && evalResult.mistakes.length > 0 && (
+                    <div className="space-y-2">
+                       <div className="flex items-center gap-2 text-rose-400 font-bold uppercase text-[9px] tracking-widest px-1">
+                        <AlertCircle size={12} /> Detected Issues
+                      </div>
+                      <div className="space-y-1.5">
+                        {evalResult.mistakes.map((mistake, i) => (
+                          <div key={i} className="flex gap-2 bg-rose-500/5 border border-rose-500/10 p-2.5 rounded-xl">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0 opacity-50" />
+                            <p className="text-slate-400 text-[11px] leading-tight">{mistake}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Trace Analysis */}
+                  {evalResult.explanations?.line_by_line && evalResult.explanations.line_by_line.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[9px] tracking-widest px-1">
+                        <Layers size={12} /> Trace Analysis
+                      </div>
+                      <div className="space-y-1.5 px-0.5">
+                        {evalResult.explanations.line_by_line.map((step, i) => (
+                          <div key={i} className="flex gap-3 items-center bg-slate-950/40 p-2 rounded-xl border border-white/5 group hover:bg-slate-900/60 transition-colors">
+                            <span className="text-[10px] font-mono text-slate-700 font-black min-w-[12px] text-center select-none group-hover:text-primary transition-colors">
+                              {i + 1}
+                            </span>
+                            <p className="text-slate-300 text-[11px] font-medium leading-none tracking-tight">
+                              {step}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Diagram */}
+                  {evalResult.explanations?.diagram && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-primary font-bold uppercase text-[9px] tracking-widest px-1">
+                        <GitBranch size={12} /> Logic Flow-Chart
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                        <Mermaid chart={evalResult.explanations.diagram} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Theory */}
+                  {evalResult.explanations?.theoretical_concepts && evalResult.explanations.theoretical_concepts.length > 0 && (
+                    <div className="bg-slate-900/40 border border-white/5 p-3 rounded-2xl">
+                      <div className="flex items-center gap-2 mb-2 text-slate-100 font-bold uppercase text-[9px] tracking-widest">
+                        <Target size={12} /> Core Theory
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {evalResult.explanations.theoretical_concepts.map((concept, i) => (
+                          <span key={i} className="bg-slate-800/80 border border-white/10 px-2 py-0.5 rounded text-[10px] text-slate-300">
+                            {concept}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
         </div>
       </div>
-      {/* 2. MIDDLE: Editor & Code Control */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0">
 
+      {/* 2. MAIN: Editor & Console */}
+      <div className="flex-1 flex flex-col gap-4 min-w-0">
+        
         {/* Top bar for Editor */}
         <div className="bg-surface/40 border border-white/5 rounded-2xl p-3 flex items-center justify-between backdrop-blur-sm px-5">
           <div className="flex items-center gap-4 shrink-0">
@@ -301,12 +444,12 @@ const Practice = () => {
         </div>
 
         {/* Console / Stdin */}
-        <div className="h-64 grid grid-cols-[1fr_2fr] gap-4">
+        <div className="h-auto lg:h-64 grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-4">
           <div className="bg-black/40 border border-white/5 rounded-2xl flex flex-col backdrop-blur-sm group/stdin">
             <div className="p-3 border-b border-white/5 flex items-center gap-4 text-[11px] font-bold uppercase tracking-widest">
               <div className="flex items-center gap-2 text-slate-500"><Terminal size={14} /> Input Stream</div>
 
-              {/* Dynamic Prompt Detector - NOW ON THE LEFT */}
+              {/* Dynamic Prompt Detector */}
               {(() => {
                 const promptMatch = code.match(/input\s*\(\s*["'](.*?)["']\s*\)/);
                 if (promptMatch && promptMatch[1]) {
@@ -355,175 +498,6 @@ const Practice = () => {
               {output?.stderr && <div className="text-rose-400/90">{output.stderr}</div>}
               {!output && !isSubmitting && <div className="text-slate-700 font-italic text-[11px]">System idle. Awaiting compilation.</div>}
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. RIGHT: Mentor & Analysis */}
-      <div className="w-80 flex flex-col gap-4 shrink-0">
-        {/* Active Goal */}
-        {!code.trim() ? (
-          <div className="bg-slate-900/30 border border-white/5 rounded-2xl p-8 flex flex-col items-center justify-center text-center opacity-60">
-            <Code2 size={40} className="text-slate-700 mb-4" />
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-              Sandbox Active<br />
-              <span className="text-[10px] font-normal lowercase tracking-normal">Write any logic. The AI will identify your mission and provide deep insights.</span>
-            </p>
-          </div>
-        ) : (
-          <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden group animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Lightbulb size={60} />
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles size={18} className="text-indigo-400" />
-              <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                Universal Logic Mission
-              </h3>
-            </div>
-            <p className="text-sm text-slate-300 leading-relaxed font-bold">
-              {code.toLowerCase().includes('even') || code.toLowerCase().includes('% 2')
-                ? "Goal: Mastering Even/Odd Logic & Numerical Parity."
-                : code.toLowerCase().includes('age')
-                  ? "Goal: Mastering Age-Based Eligibility & Conditionals."
-                  : "Goal: Perfecting Custom Logic Architecture."
-              }
-            </p>
-            <p className="text-[11px] text-slate-400 mt-2 leading-tight">
-              The AI is currently analyzing your specific snippet for theoretical depth and real-world application.
-            </p>
-          </div>
-        )}
-
-        {/* Mentor Results */}
-        <div className="flex-1 bg-surface/40 border border-white/5 rounded-2xl flex flex-col overflow-hidden backdrop-blur-sm">
-          <div className="p-4 border-b border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={18} className="text-emerald-500" />
-              <span className="text-sm font-bold text-white tracking-tight">AI Insights</span>
-            </div>
-            {evalResult && (
-              <div className={`px-2 py-1 rounded text-[10px] font-black uppercase ${evalResult.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                {evalResult.status}
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar text-[13px]">
-            {!evalResult && !isSubmitting && (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-4 opacity-40">
-                <HelpCircle size={40} className="text-indigo-500" />
-                <p className="text-slate-400 font-medium">Complete the challenge and hit <b>Submit</b> to unlock AI mentor analytics.</p>
-              </div>
-            )}
-
-            {evalResult && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-                {/* Status Message */}
-                <div className={`p-4 rounded-xl border mb-4 ${evalResult.status === 'success' ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-100' : 'bg-rose-500/5 border-rose-500/20 text-rose-100'}`}>
-                  <p className="leading-relaxed font-medium">{evalResult.message}</p>
-                </div>
-
-                {/* Specific Mistakes */}
-                {evalResult.mistakes && evalResult.mistakes.length > 0 && (
-                  <div className="mb-6 animate-in slide-in-from-left-4 duration-300">
-                    <div className="flex items-center gap-2 mb-3 text-rose-400 font-bold uppercase text-[10px] tracking-widest px-1">
-                      <AlertCircle size={14} /> Identified Issues
-                    </div>
-                    <div className="space-y-2">
-                      {evalResult.mistakes.map((mistake, i) => (
-                        <div key={i} className="flex gap-3 bg-rose-500/5 border border-rose-500/10 p-3 rounded-lg group hover:border-rose-500/30 transition-all">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
-                          <p className="text-slate-300 text-xs leading-relaxed">{mistake}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Corrected Code Recommendation */}
-                {evalResult.fixed_code && evalResult.fixed_code !== code && evalResult.fixed_code !== "HIDDEN. Socratic mode prevents revealing the full refactored code." && (
-                  <div className="mb-8 border border-white/5 rounded-xl overflow-hidden bg-slate-900/40 group">
-                    <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
-                      <div className="flex items-center gap-2 text-primary font-bold uppercase text-[10px] tracking-widest">
-                        <Check size={14} /> Corrected Logic
-                      </div>
-                      <button
-                        onClick={() => handleCodeChange(evalResult.fixed_code)}
-                        className="text-[10px] bg-primary/20 hover:bg-primary/40 text-primary px-3 py-1 rounded-full font-black transition-all hover:scale-105 active:scale-95"
-                      >
-                        APPLY FIX
-                      </button>
-                    </div>
-                    <div className="p-4 max-h-80 overflow-y-auto custom-scrollbar">
-                      <pre className="text-[11px] font-mono text-slate-400 leading-tight">
-                        {evalResult.fixed_code}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-
-                {/* Diagram */}
-                {evalResult.explanations?.diagram && (
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-3 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
-                      <GitBranch size={14} /> Logic flow-chart
-                    </div>
-                    <Mermaid chart={evalResult.explanations.diagram} />
-                  </div>
-                )}
-
-                {/* Theory & Real World - Explained after submission */}
-                <div className="space-y-6 pt-4 border-t border-white/5">
-                  <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-4 transition-all hover:bg-indigo-500/10">
-                    <div className="flex items-center gap-2 mb-2 text-indigo-300 font-bold uppercase text-[10px] tracking-widest">
-                      <BookOpen size={14} /> Core Theory
-                    </div>
-                    <p className="text-slate-300 leading-relaxed text-xs">
-                      {evalResult?.explanations?.logic_simplification || selectedConcept?.theory || "Wait for AI analysis for deep insights."}
-                    </p>
-                  </div>
-
-                  <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4 transition-all hover:bg-amber-500/10">
-                    <div className="flex items-center gap-2 mb-2 text-amber-300 font-bold uppercase text-[10px] tracking-widest">
-                      <Briefcase size={14} /> Real-World Application
-                    </div>
-                    <p className="text-slate-300 leading-relaxed text-xs">
-                      {evalResult?.explanations?.real_world_use_case || selectedConcept?.real_world || "Analyzing potential real-world applications for your code snippet..."}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Alternative */}
-                {evalResult.alternative && (
-                  <div className="mt-8 mb-8 bg-black/30 border border-indigo-500/10 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2 text-indigo-400 font-bold uppercase text-[10px] tracking-widest">
-                      <Lightbulb size={14} /> Alternative Methodology
-                    </div>
-                    <p className="text-slate-400 leading-relaxed italic">{evalResult.alternative}</p>
-                  </div>
-                )}
-
-                {/* Line by Line */}
-                {evalResult.explanations?.line_by_line && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-4 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
-                      <Layers size={14} /> Trace Analysis
-                    </div>
-                    <div className="space-y-3">
-                      {evalResult.explanations.line_by_line.map((line, i) => (
-                        <div key={i} className="flex gap-4 group">
-                          <span className="text-slate-600 font-mono text-[10px] pt-1">{i + 1}</span>
-                          <p className="text-slate-400 group-hover:text-slate-200 transition-colors leading-relaxed">{line}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            )}
           </div>
         </div>
       </div>

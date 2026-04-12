@@ -1,10 +1,12 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import NewReview from './pages/NewReview';
 import History from './pages/History';
 import Results from './pages/Results';
 import Practice from './pages/Practice';
+import Dashboard from './pages/Dashboard';
 
 function App() {
   return (
@@ -20,7 +22,7 @@ function App() {
           <Navbar />
         </div>
 
-        <div className="w-full max-w-7xl px-8 z-10 flex flex-col h-[calc(100vh-80px)]">
+        <div className="w-full max-w-[1800px] px-4 md:px-8 z-10 flex flex-col flex-grow">
           <div className="flex-grow mt-10">
             <Routes>
               <Route path="/" element={<Practice />} />
@@ -30,6 +32,8 @@ function App() {
             </Routes>
           </div>
         </div>
+
+        <Footer />
       </div>
     </BrowserRouter>
   );

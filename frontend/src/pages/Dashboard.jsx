@@ -88,7 +88,7 @@ const Dashboard = () => {
   const recent   = reviews.slice(0, 5);
 
   // Blind spot analytics
-  let docsIssues = 0, syntaxIssues = 0, perfIssues = 0, secIssues = 0, otherIssues = 0;
+  let docsIssues = 0, syntaxIssues = 0, perfIssues = 0, secIssues = 0;
   reviews.forEach(r => {
     (r.feedback || []).forEach(f => {
        const msg = (f.message || "").toLowerCase();
@@ -96,7 +96,7 @@ const Dashboard = () => {
        else if (msg.includes("syntax") || msg.includes("semicolon") || msg.includes("var")) syntaxIssues++;
        else if (msg.includes("loop") || msg.includes("o(n") || msg.includes("time complexity")) perfIssues++;
        else if (msg.includes("exploit") || msg.includes("injection") || msg.includes("xss")) secIssues++;
-       else otherIssues++;
+
     });
   });
 

@@ -1,4 +1,4 @@
-# 🎮 AI Code Reviewer (Gamified Developer Workspace)
+# 🎮 MarroeCode (Gamified Developer Workspace)
 
 An advanced, interactive full-stack learning platform designed to help developers write better, cleaner, and more secure code. This isn't just a basic linter—it's a comprehensive, gamified platform where an AI mentor actively challenges your logic, tests your speed, and simulates real-world constraints.
 

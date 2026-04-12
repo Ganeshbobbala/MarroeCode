@@ -3,6 +3,7 @@ import tempfile
 import subprocess
 import os
 import re
+import sys
 
 def run_static_analysis(code: str, language: str) -> list:
     """

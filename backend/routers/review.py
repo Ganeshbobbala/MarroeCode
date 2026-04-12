@@ -16,10 +16,9 @@ class RunRequest(BaseModel):
     concept_id: Optional[str] = None
 
 router = APIRouter()
+from database import supabase
 
-# In-memory storage for demonstration. 
-# In production, replace this with MongoDB calls.
-history_db = []
+# Removed in-memory history_db in favor of Supabase persistent storage
 
 @router.get("/practice/concepts")
 async def get_practice_concepts():
@@ -65,8 +64,17 @@ async def analyze_code(submission: CodeSubmission):
                 feedback=merged_feedback
             )
 
-        # Save to history
-        history_db.append(result)
+        # 3. Save to Supabase (Persistence)
+        try:
+            db_data = result.dict()
+            # Convert datetime to string for JSON serialization if necessary
+            db_data["timestamp"] = db_data["timestamp"].isoformat()
+            
+            supabase.table("reviews").insert(db_data)
+        except Exception as db_err:
+            print(f"Database error (Review not saved): {db_err}")
+            # We don't raise here so the user still gets their analysis result
+            
         return result
 
     except Exception as e:
@@ -75,9 +83,14 @@ async def analyze_code(submission: CodeSubmission):
 @router.get("/history")
 async def get_history():
     """
-    Returns previous code reviews.
+    Returns previous code reviews from Supabase.
     """
-    return {"history": history_db}
+    try:
+        data = supabase.table("reviews").select("*")
+        return {"history": data}
+    except Exception as e:
+        print(f"History fetch error: {e}")
+        return {"history": [], "error": "Could not connect to database"}
 
 import re
 
@@ -329,7 +342,7 @@ async def evaluate_practice(request: RunRequest):
                     alternative_text += f"I noticed an issue: {f} How would you refactor this to be cleaner or safer?\n"
         
         elif mode == "code_golf":
-            lines = [l for l in code.split('\\n') if l.strip()]
+            lines = [l for l in code.splitlines() if l.strip()]
             line_count = len(lines)
             if line_count <= 5:
                 status_msg = f"Incredible! You solved this in just {line_count} lines! True Code Golf Mastery."

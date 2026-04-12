@@ -154,7 +154,7 @@ const CopyBtn = ({ text }) => {
 };
 
 // ─── Issue Card ───────────────────────────────────────────────────────────────
-const IssueCard = ({ item, index }) => {
+const IssueCard = ({ item }) => {
   const [open, setOpen] = useState(false);
   const cfg = sevConfig(item.type);
   const isFixed = item.type?.toLowerCase() === 'error' && item.suggestion; // simulate "fixed" state

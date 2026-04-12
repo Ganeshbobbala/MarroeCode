@@ -1,14 +1,15 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Code2, Sparkles, Plus, History } from 'lucide-react';
+import { Code2, Sparkles } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 const Navbar = () => {
   return (
     <header className="flex justify-between items-center w-full py-4 px-8 border-b border-white/5 bg-background">
       {/* Brand logo left */}
       <div className="flex items-center gap-3 group cursor-pointer select-none">
-        <div className="p-1.5 bg-primary/10 text-primary rounded-xl">
-          <Code2 size={22} className="stroke-[2.5]" />
+        <div className="w-10 h-10 p-1 bg-primary/10 rounded-xl overflow-hidden flex items-center justify-center">
+          <img src={logo} alt="MarroeCode Logo" className="w-full h-full object-contain" />
         </div>
         <h1 className="text-xl font-bold text-white flex gap-2 items-center tracking-tight">
           MarroeCode
@@ -17,7 +18,12 @@ const Navbar = () => {
       </div>
 
       {/* Navigation center-right */}
-      <nav className="flex items-center gap-4">
+      <nav className="flex items-center gap-6">
+        <div className="hidden md:flex flex-col items-end">
+          <span className="text-[10px] uppercase font-black text-slate-500 tracking-tighter">Developed By</span>
+          <span className="text-xs font-bold text-white hover:text-primary transition-colors cursor-pointer">Ganesh Bobbala</span>
+        </div>
+        
         <NavLink 
           to="/" 
           className={({ isActive }) => 
@@ -27,7 +33,7 @@ const Navbar = () => {
           }
         >
           <Code2 size={18} />
-          Practice Arena
+          Practice
         </NavLink>
       </nav>
     </header>
