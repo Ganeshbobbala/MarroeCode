@@ -254,7 +254,8 @@ const RunPanel = ({ code, language }) => {
     setRunning(true);
     setOutput(null);
     try {
-      const { data } = await axios.post('http://localhost:8000/api/run', {
+      const API_BASE = import.meta.env.VITE_API_BASEURL || `http://${window.location.hostname}:8000/api`;
+      const { data } = await axios.post(`${API_BASE}/run`, {
         code, language, stdin
       });
       setOutput(data);

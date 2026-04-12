@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 
-const API_BASE = import.meta.env.VITE_API_BASEURL || 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASEURL || `http://${window.location.hostname}:8000/api`;
 
 const langBadge = (lang) => {
   const map = {

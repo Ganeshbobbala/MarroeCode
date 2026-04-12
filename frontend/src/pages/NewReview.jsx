@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Editor from '@monaco-editor/react';
 import { ArrowLeft, Upload, GitBranch, Sparkles, ChevronDown, CheckCircle2, Loader2 } from 'lucide-react';
-const API_BASE = import.meta.env.VITE_API_BASEURL || 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASEURL || `http://${window.location.hostname}:8000/api`;
 
 const NewReview = () => {
     const navigate = useNavigate();

@@ -34,7 +34,7 @@ const Mermaid = ({ chart }) => {
   return <div ref={ref} className="flex justify-center p-4 bg-slate-900/80 rounded-xl border border-indigo-500/20 overflow-x-auto my-4 transition-all hover:border-indigo-500/40" />;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASEURL || 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASEURL || `http://${window.location.hostname}:8000/api`;
 
 const BOILERPLATES = {
   java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, Practice!");\n    }\n}`,
