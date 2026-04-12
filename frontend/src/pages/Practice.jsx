@@ -368,7 +368,7 @@ const Practice = () => {
       </div>
 
       {/* 2. MAIN: Editor & Console */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0">
+      <div className="flex-1 flex flex-col gap-4 min-w-0 h-auto lg:h-full">
         
         {/* Top bar for Editor */}
         <div className="bg-surface/40 border border-white/5 rounded-2xl p-3 flex items-center justify-between backdrop-blur-sm px-5">
@@ -420,7 +420,7 @@ const Practice = () => {
         </div>
 
         {/* Editor Area */}
-        <div className="flex-1 bg-[#1e1e1e] border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative group">
+        <div className="flex-1 bg-[#1e1e1e] border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative group min-h-[450px] lg:min-h-0">
           <div className="absolute top-4 right-4 z-20 flex gap-2">
             <span className="bg-indigo-600/80 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black border border-white/20 uppercase tracking-widest text-white flex items-center gap-1 shadow-lg">
               <Zap size={10} fill="currentColor" /> {language.toUpperCase()} ENGINE ACTIVE
