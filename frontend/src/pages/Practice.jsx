@@ -420,7 +420,7 @@ const Practice = () => {
         </div>
 
         {/* Editor Area */}
-        <div className="flex-1 bg-[#1e1e1e] border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative group min-h-[450px] lg:min-h-0">
+        <div className="bg-[#1e1e1e] border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative group h-[450px] lg:h-auto lg:flex-1">
           <div className="absolute top-4 right-4 z-20 flex gap-2">
             <span className="bg-indigo-600/80 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black border border-white/20 uppercase tracking-widest text-white flex items-center gap-1 shadow-lg">
               <Zap size={10} fill="currentColor" /> {language.toUpperCase()} ENGINE ACTIVE
