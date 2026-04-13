@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import axios from 'axios';
+import API_BASE from '../api_config';
 import mermaid from 'mermaid';
 
 mermaid.initialize({
@@ -34,7 +35,6 @@ const Mermaid = ({ chart }) => {
   return <div ref={ref} className="flex justify-center p-4 bg-slate-900/80 rounded-xl border border-indigo-500/20 overflow-x-auto my-4 transition-all hover:border-indigo-500/40" />;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASEURL || `http://${window.location.hostname}:8000/api`;
 
 const BOILERPLATES = {
   java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, Practice!");\n    }\n}`,
@@ -136,22 +136,35 @@ const Practice = () => {
     setIsSubmitting(true);
     setEvalResult(null);
     try {
-      const res = await axios.post(`${API_BASE}/run`, {
-        code: activeFile.content,
-        language: activeFile.language.toLowerCase(),
+      // 1. Run the code
+      const runRes = await axios.post(`${API_BASE}/run`, {
+        code,
+        language: language.toLowerCase(),
         stdin
       });
-      setOutput(res.data);
+      setOutput(runRes.data);
 
-      const evalRes = await axios.post(`${API_BASE}/practice/evaluate`, {
-        code: activeFile.content,
-        language: activeFile.language.toLowerCase(),
-        mode, persona, stdin,
-        concept_id: selectedConcept?.id
-      });
-      setEvalResult(evalRes.data);
-    } catch (err) {
-      setOutput({ stderr: "Execution Error: " + (err.response?.data?.detail || "Network Failure") });
+      // 2. Perform AI evaluation (separated to prevent eval failure from hiding output)
+      try {
+        const evalRes = await axios.post(`${API_BASE}/practice/evaluate`, {
+          code,
+          language: language.toLowerCase(),
+          mode, persona, stdin,
+          concept_id: selectedConcept?.id
+        });
+        setEvalResult(evalRes.data);
+      } catch (evalErr) {
+        console.error("Evaluation failed:", evalErr);
+        // We don't overwrite output here; evalResult stays null or shows partial error in UI if needed
+        setEvalResult({ 
+          status: "error", 
+          message: "Mentor analysis currently unavailable. Execution succeeded.",
+          mistakes: ["AI Evaluation Error: " + (evalErr.response?.data?.detail || "Network Timeout")]
+        });
+      }
+    } catch (runErr) {
+      console.error("Run failed:", runErr);
+      setOutput({ stderr: "Execution Error: " + (runErr.response?.data?.detail || "Could not reach server") });
     } finally {
       setIsSubmitting(false);
     }
@@ -377,7 +390,20 @@ const Practice = () => {
               <Code2 size={16} className="text-primary" />
               <select
                 value={language}
-                onChange={e => setLanguage(e.target.value)}
+                onChange={e => {
+                  const newLang = e.target.value;
+                  setLanguage(newLang);
+                  setFiles(prev => prev.map(f => {
+                    if (f.id === activeFileId) {
+                      const oldBoilerplate = BOILERPLATES[f.language] || "";
+                      if (f.content === oldBoilerplate || !f.content.trim()) {
+                        return { ...f, language: newLang, content: BOILERPLATES[newLang] || "" };
+                      }
+                      return { ...f, language: newLang };
+                    }
+                    return f;
+                  }));
+                }}
                 className="bg-transparent border-none text-sm font-bold text-slate-200 outline-none cursor-pointer appearance-none pr-4"
               >
                 <option value="python" className="bg-slate-900 text-white">Python</option>

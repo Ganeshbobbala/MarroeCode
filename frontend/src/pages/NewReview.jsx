@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import API_BASE from '../api_config';
 import Editor from '@monaco-editor/react';
 import { ArrowLeft, Upload, GitBranch, Sparkles, ChevronDown, CheckCircle2, Loader2 } from 'lucide-react';
-const API_BASE = import.meta.env.VITE_API_BASEURL || `http://${window.location.hostname}:8000/api`;
 
 const NewReview = () => {
     const navigate = useNavigate();

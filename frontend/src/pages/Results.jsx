@@ -7,6 +7,7 @@ import {
   Code2, Play, CheckCircle, Copy, Check, Terminal, Loader2, Zap
 } from 'lucide-react';
 import axios from 'axios';
+import API_BASE from '../api_config';
 import mermaid from 'mermaid';
 
 mermaid.initialize({
@@ -254,7 +255,6 @@ const RunPanel = ({ code, language }) => {
     setRunning(true);
     setOutput(null);
     try {
-      const API_BASE = import.meta.env.VITE_API_BASEURL || `http://${window.location.hostname}:8000/api`;
       const { data } = await axios.post(`${API_BASE}/run`, {
         code, language, stdin
       });

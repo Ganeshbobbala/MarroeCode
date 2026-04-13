@@ -164,6 +164,52 @@ def analyze_code_with_ai(code: str, language: str) -> dict:
             })
 
         refactored_code = code.replace('var ', 'let ')
+    
+    # ─── Java-specific analysis ──────────────────────────────────────────────
+    elif language.lower() == "java":
+        lines = code.split('\n')
+        
+        # Check for System.out.println (suggesting a logger maybe?)
+        if "System.out.println" in code:
+            feedback.append({
+                "line": None,
+                "type": "suggestion",
+                "message": "Direct use of `System.out.println` detected.",
+                "suggestion": "In larger projects, use a logging framework like Log4j or SLF4J."
+            })
+            
+        # Check for scanners not being closed
+        if "new Scanner" in code and ".close()" not in code:
+            deductions += 10
+            feedback.append({
+                "line": None,
+                "type": "warning",
+                "message": "Scanner object created but not closed.",
+                "suggestion": "Always call `.close()` on Scanner objects to prevent resource leaks, or use try-with-resources."
+            })
+            
+        refactored_code = code
+
+    # ─── C/C++ specific analysis ──────────────────────────────────────────────
+    elif language.lower() in ("c", "cpp", "c++"):
+        if "using namespace std;" in code:
+            feedback.append({
+                "line": None,
+                "type": "suggestion",
+                "message": "Found `using namespace std;` in your code.",
+                "suggestion": "Consider using explicit namespaces (e.g., `std::cout`) to avoid name collisions in larger projects."
+            })
+            
+        if "malloc(" in code and "free(" not in code:
+            deductions += 20
+            feedback.append({
+                "line": None,
+                "type": "warning",
+                "message": "Memory allocated with `malloc` but no `free` detected.",
+                "suggestion": "Every `malloc` should have a corresponding `free` to prevent memory leaks."
+            })
+            
+        refactored_code = code
 
     else:
         # Generic fallback

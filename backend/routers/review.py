@@ -118,6 +118,7 @@ def interleave_output(stdout_str, stdin_str):
 async def run_code(request: RunRequest):
     code = request.code
     lang = request.language.lower()
+    temp_path = None
     print(f"[RUN] Lang: {lang}, Input length: {len(request.stdin or '')}")
     
     if lang == "python":
